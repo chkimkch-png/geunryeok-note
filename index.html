@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1F2A44">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="근력노트">
+<title>근력노트</title>
+<style>
+:root{--navy:#1F2A44;--orange:#FF7A00;--bg:#F4F5F8;--card:#fff;--line:#DDE1E8;--text:#1b1f2a;--sub:#6b7385}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,"Noto Sans KR","Malgun Gothic",sans-serif;font-size:17px;padding-bottom:84px}
+header{background:var(--navy);color:#fff;padding:14px 16px;position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:baseline}
+header h1{margin:0;font-size:20px}
+header span{font-size:13px;color:#c9d0e0}
+main{padding:14px;max-width:560px;margin:0 auto}
+.tab{display:none}.tab.active{display:block}
+label{display:block;font-size:14px;color:var(--sub);margin:12px 0 4px}
+input,select{width:100%;padding:13px 12px;font-size:17px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--text)}
+input:focus,select:focus{outline:2px solid var(--orange);border-color:var(--orange)}
+.meta{font-size:14px;color:var(--sub);margin-top:6px}
+.sets{background:var(--card);border-radius:12px;padding:10px;margin-top:12px;border:1px solid var(--line)}
+.sh,.sr{display:grid;grid-template-columns:54px 1fr 1fr;gap:8px;align-items:center}
+.sh{font-size:12px;color:var(--sub);margin-bottom:4px}
+.sr{margin-bottom:8px}.sr b{color:var(--navy)}
+#live{margin-top:14px;padding:12px;background:#fff3e6;border-radius:10px;color:#8a4300;font-size:15px}
+button{font-size:17px;border:0;border-radius:12px;padding:14px;width:100%;margin-top:12px;font-weight:600}
+.primary{background:var(--orange);color:#fff}
+.ghost{background:#e9ecf3;color:var(--navy)}
+.danger{background:#fde8e8;color:#b42318}
+.small{width:auto;padding:8px 12px;font-size:14px;margin:0}
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:env(safe-area-inset-bottom)}
+nav button{margin:0;border-radius:0;background:#fff;color:var(--sub);padding:14px 4px;font-size:15px}
+nav button.on{color:var(--orange);border-top:3px solid var(--orange);padding-top:11px}
+h3{margin:18px 2px 6px;font-size:15px;color:var(--navy);display:flex;justify-content:space-between}
+h3 em{font-style:normal;color:var(--sub);font-weight:400;font-size:13px}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px}
+.card .t{display:flex;justify-content:space-between;font-weight:700}
+.card .t small{color:var(--sub);font-weight:400}
+.card .d{font-size:14px;color:#444;margin-top:4px;line-height:1.5}
+.card .del{float:right}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;font-size:14px}
+th{background:var(--navy);color:#fff;font-weight:500;padding:9px 6px;text-align:right}
+td{padding:9px 6px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+td b{color:var(--orange)}
+.empty{color:var(--sub);text-align:center;padding:30px 0}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:6px}
+.note{font-size:13px;color:var(--sub);line-height:1.5;margin-top:6px}
+#toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:20px;font-size:15px;opacity:0;transition:.25s;pointer-events:none;z-index:9;max-width:90%}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+<header><h1>근력노트</h1><span id="sub"></span></header>
+<main>
+
+<section class="tab active" id="tab-in">
+  <label for="date">날짜</label>
+  <input type="date" id="date">
+  <label for="ex">운동 종목</label>
+  <select id="ex"></select>
+  <div class="meta" id="meta"></div>
+  <button class="ghost" id="btnLast">지난번 기록 불러오기</button>
+
+  <div id="strength">
+    <label for="base">기본무게 (kg) · 맨몸이면 0</label>
+    <input id="base" type="number" inputmode="decimal" step="0.5" min="0" placeholder="0">
+    <div class="sets" id="sets">
+      <div class="sh"><span></span><span>횟수</span><span>무게(kg)·다를 때만</span></div>
+    </div>
+  </div>
+
+  <div id="cardio" hidden>
+    <label for="dist">거리 (km)</label>
+    <input id="dist" type="number" inputmode="decimal" step="0.01" min="0" placeholder="예: 5.2">
+    <label for="min">시간 (분, 선택)</label>
+    <input id="min" type="number" inputmode="decimal" step="1" min="0" placeholder="예: 40">
+  </div>
+
+  <label for="memo">비고</label>
+  <input id="memo" type="text" placeholder="컨디션, 메모 등">
+  <div id="live"></div>
+  <button class="primary" id="btnSave">저장</button>
+</section>
+
+<section class="tab" id="tab-list"><div id="list"></div></section>
+
+<section class="tab" id="tab-sum"><div id="sum"></div></section>
+
+<section class="tab" id="tab-set">
+  <h3>운동 종목 관리</h3>
+  <div id="exlist"></div>
+  <label for="nn">새 종목 이름</label><input id="nn" type="text" placeholder="예: 데드리프트">
+  <label for="np">부위</label><input id="np" type="text" placeholder="예: 등 (유산소는 '유산소')">
+  <label for="nt">유형</label>
+  <select id="nt"><option>근력</option><option>유산소</option></select>
+  <button class="ghost" id="btnAddEx">종목 추가</button>
+
+  <h3>구글 시트 자동 전송 (선택)</h3>
+  <label for="url">Apps Script 웹앱 주소</label>
+  <input id="url" type="url" placeholder="https://script.google.com/macros/s/.../exec">
+  <button class="ghost" id="btnUrl">주소 저장</button>
+  <button class="ghost" id="btnResend">전체 다시 보내기 (중복은 시트에서 제외)</button>
+  <div class="note" id="syncNote"></div>
+
+  <h3>백업 / 복원</h3>
+  <button class="ghost" id="btnCsv">CSV로 내보내기</button>
+  <button class="ghost" id="btnImp">CSV 가져오기</button>
+  <input type="file" id="file" accept=".csv,text/csv" hidden>
+  <div class="note">기록은 이 휴대폰의 브라우저에 저장됩니다. 브라우저 데이터를 지우면 사라지므로 가끔 CSV로 백업하세요.</div>
+  <button class="danger" id="btnClear">전체 기록 삭제</button>
+</section>
+
+</main>
+
+<nav>
+  <button data-t="in" class="on">입력</button>
+  <button data-t="list">기록</button>
+  <button data-t="sum">누적</button>
+  <button data-t="set">설정</button>
+</nav>
+<div id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+var KEY='geunryeok_note_v1';
+var DEF=[{n:'벤치프레스',p:'가슴',t:'근력'},{n:'랫풀다운',p:'등',t:'근력'},{n:'스쿼트',p:'하체',t:'근력'},{n:'숄더프레스',p:'어깨',t:'근력'},{n:'빨리걷기',p:'유산소',t:'유산소'},{n:'러닝',p:'유산소',t:'유산소'}];
+var state={ex:DEF,rec:[],url:''};
+var $=function(i){return document.getElementById(i)};
+
+function load(){try{var s=localStorage.getItem(KEY);if(s){var o=JSON.parse(s);if(o.ex)state.ex=o.ex;if(o.rec)state.rec=o.rec;if(o.url)state.url=o.url;}}catch(e){}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state));return true}catch(e){toast('저장 공간을 쓸 수 없습니다. CSV로 백업하세요');return false}}
+function toast(m){var t=$('toast');t.textContent=m;t.className='show';clearTimeout(toast.h);toast.h=setTimeout(function(){t.className=''},2200)}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function num(v){var n=parseFloat(v);return isNaN(n)||n<0?0:n}
+function fmt(n){return (Math.round(n*100)/100).toLocaleString('ko-KR')}
+function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function newId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function calc(reps,w,base){var sets=0,vol=0;for(var i=0;i<5;i++){if(reps[i]>0){sets++;vol+=reps[i]*(w[i]>0?w[i]:base)}}return{sets:sets,vol:vol}}
+function findEx(n){for(var i=0;i<state.ex.length;i++)if(state.ex[i].n===n)return state.ex[i];return null}
+
+/* 세트 입력칸 만들기 */
+var setsBox=$('sets');
+for(var i=0;i<5;i++){
+  var r=document.createElement('div');r.className='sr';
+  r.innerHTML='<b>'+(i+1)+'세트</b><input type="number" inputmode="numeric" min="0" id="r'+i+'" placeholder="횟수"><input type="number" inputmode="decimal" step="0.5" min="0" id="w'+i+'" placeholder="기본">';
+  setsBox.appendChild(r);
+}
+
+function renderEx(keep){
+  var sel=$('ex'),cur=keep||sel.value;sel.innerHTML='';
+  state.ex.forEach(function(e){var o=document.createElement('option');o.value=e.n;o.textContent=e.n;sel.appendChild(o)});
+  if(cur&&findEx(cur))sel.value=cur;
+  onEx();
+}
+function onEx(){
+  var e=findEx($('ex').value);
+  if(!e){$('meta').textContent='종목을 설정 탭에서 추가하세요';return}
+  $('meta').textContent='부위: '+e.p+' · 유형: '+e.t;
+  var c=e.t==='유산소';
+  $('strength').hidden=c;$('cardio').hidden=!c;
+  live();
+}
+function readForm(){
+  var base=num($('base').value),reps=[],w=[];
+  for(var i=0;i<5;i++){reps.push(num($('r'+i).value));w.push(num($('w'+i).value))}
+  return{base:base,reps:reps,w:w};
+}
+function live(){
+  var e=findEx($('ex').value),box=$('live');
+  if(!e){box.textContent='';return}
+  if(e.t==='유산소'){box.textContent='입력 거리: '+fmt(num($('dist').value))+' km';return}
+  var f=readForm(),c=calc(f.reps,f.w,f.base);
+  box.textContent='수행 세트 '+c.sets+'개 · 운동량 '+fmt(c.vol)+' kg';
+}
+function clearForm(){
+  $('base').value='';for(var i=0;i<5;i++){$('r'+i).value='';$('w'+i).value=''}
+  $('dist').value='';$('min').value='';$('memo').value='';live();
+}
+
+function lastOf(name){
+  var best=null;
+  state.rec.forEach(function(r){if(r.ex===name&&(!best||r.date>best.date||(r.date===best.date&&r.ts>best.ts)))best=r});
+  return best;
+}
+function fillLast(){
+  var r=lastOf($('ex').value);
+  if(!r){toast('이 종목의 이전 기록이 없습니다');return}
+  $('base').value=r.base||'';
+  for(var i=0;i<5;i++){$('r'+i).value=r.reps[i]||'';$('w'+i).value=r.w[i]||''}
+  $('dist').value=r.dist||'';$('min').value=r.min||'';live();
+  toast(r.date+' 기록을 불러왔습니다');
+}
+
+function sheetRow(r){
+  var row=[r.id,r.date,r.part,r.ex,r.base];
+  for(var i=0;i<5;i++)row.push(r.reps[i]||'');
+  for(i=0;i<5;i++)row.push(r.w[i]||'');
+  row.push(r.dist||'',r.min||'',r.memo||'',r.sets,r.vol);
+  return row;
+}
+function send(recs,quiet){
+  if(!state.url||!recs.length)return Promise.resolve(false);
+  return fetch(state.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({rows:recs.map(sheetRow)})})
+   .then(function(){recs.forEach(function(r){r.sent=true});save();renderList();if(!quiet)toast('시트로 전송을 요청했습니다');return true})
+   .catch(function(){if(!quiet)toast('전송 실패 – 인터넷 연결을 확인하세요');return false});
+}
+
+function saveRec(){
+  var e=findEx($('ex').value);
+  if(!e){toast('종목을 선택하세요');return}
+  var date=$('date').value;if(!date){toast('날짜를 입력하세요');return}
+  var rec={id:newId(),ts:Date.now(),date:date,part:e.p,ex:e.n,type:e.t,base:0,reps:[0,0,0,0,0],w:[0,0,0,0,0],dist:0,min:0,memo:$('memo').value.trim(),sets:0,vol:0,sent:false};
+  if(e.t==='유산소'){
+    rec.dist=num($('dist').value);rec.min=num($('min').value);
+    if(!(rec.dist>0||rec.min>0)){toast('거리 또는 시간을 입력하세요');return}
+  }else{
+    var f=readForm();rec.base=f.base;rec.reps=f.reps;rec.w=f.w;
+    var c=calc(f.reps,f.w,f.base);rec.sets=c.sets;rec.vol=c.vol;
+    if(c.sets===0){toast('횟수를 한 세트 이상 입력하세요');return}
+  }
+  state.rec.push(rec);
+  if(!save()){state.rec.pop();return}
+  clearForm();toast('저장했습니다');renderList();renderSum();
+  send([rec],true);
+}
+
+function wd(d){return['일','월','화','수','목','금','토'][new Date(d+'T00:00:00').getDay()]}
+function el(tag,cls,txt){var x=document.createElement(tag);if(cls)x.className=cls;if(txt!==undefined)x.textContent=txt;return x}
+function renderList(){
+  var box=$('list');box.innerHTML='';
+  if(!state.rec.length){box.appendChild(el('p','empty','아직 기록이 없습니다.'));return}
+  var arr=state.rec.slice().sort(function(a,b){return b.date<a.date?-1:b.date>a.date?1:b.ts-a.ts});
+  var groups={},order=[];
+  arr.forEach(function(r){if(!groups[r.date]){groups[r.date]=[];order.push(r.date)}groups[r.date].push(r)});
+  order.forEach(function(d){
+    var vol=0,dist=0;groups[d].forEach(function(r){vol+=r.vol;dist+=r.dist});
+    var h=el('h3',null,d+' ('+wd(d)+')');
+    var s=el('em',null,(vol?'운동량 '+fmt(vol)+'kg ':'')+(dist?'거리 '+fmt(dist)+'km':''));
+    h.appendChild(s);box.appendChild(h);
+    groups[d].forEach(function(r){
+      var c=el('div','card');
+      var t=el('div','t',r.ex);t.appendChild(el('small',null,r.part+(state.url?(r.sent?' · 전송요청됨':' · 미전송'):'')));
+      c.appendChild(t);
+      var txt;
+      if(r.type==='유산소'||r.part==='유산소'&&!r.sets){txt='거리 '+fmt(r.dist)+'km'+(r.min?' · '+fmt(r.min)+'분':'')}
+      else{
+        var parts=[];for(var i=0;i<5;i++)if(r.reps[i]>0)parts.push(r.reps[i]+'회×'+fmt(r.w[i]>0?r.w[i]:r.base)+'kg');
+        txt=r.sets+'세트 · '+parts.join(' / ')+' · 운동량 '+fmt(r.vol)+'kg';
+      }
+      if(r.memo)txt+=' · '+r.memo;
+      c.appendChild(el('div','d',txt));
+      var b=el('button','danger small del','삭제');b.onclick=function(){if(confirm('이 기록을 삭제할까요?\n(구글 시트에 이미 전송된 행은 시트에서 직접 지워야 합니다)')){state.rec=state.rec.filter(function(x){return x.id!==r.id});save();renderList();renderSum()}};
+      c.appendChild(b);box.appendChild(c);
+    });
+  });
+}
+
+function renderSum(){
+  var box=$('sum');
+  if(!state.rec.length){box.innerHTML='<p class="empty">기록이 쌓이면 누적이 표시됩니다.</p>';return}
+  var m={};
+  state.rec.forEach(function(r){
+    var o=m[r.ex]||(m[r.ex]={days:{},vol:0,dist:0,min:0,max:0,type:r.type||(r.sets?'근력':'유산소'),part:r.part});
+    o.days[r.date]=1;o.vol+=r.vol;o.dist+=r.dist;o.min+=r.min;
+    for(var i=0;i<5;i++){if(r.reps[i]>0){var w=r.w[i]>0?r.w[i]:r.base;if(w>o.max)o.max=w}}
+  });
+  var names=Object.keys(m),st=names.filter(function(n){return m[n].type!=='유산소'}),ca=names.filter(function(n){return m[n].type==='유산소'});
+  var h='',tv=0,td=0;
+  if(st.length){
+    h+='<h3>근력 운동</h3><table><tr><th>종목</th><th>운동일</th><th>최고무게</th><th>누적 운동량(kg)</th></tr>';
+    st.forEach(function(n){var o=m[n];tv+=o.vol;h+='<tr><td>'+esc(n)+'</td><td>'+Object.keys(o.days).length+'</td><td>'+fmt(o.max)+'</td><td><b>'+fmt(o.vol)+'</b></td></tr>'});
+    h+='<tr><td><b>합계</b></td><td></td><td></td><td><b>'+fmt(tv)+'</b></td></tr></table>';
+  }
+  if(ca.length){
+    h+='<h3>유산소 운동</h3><table><tr><th>종목</th><th>운동일</th><th>누적 시간(분)</th><th>누적 거리(km)</th></tr>';
+    ca.forEach(function(n){var o=m[n];td+=o.dist;h+='<tr><td>'+esc(n)+'</td><td>'+Object.keys(o.days).length+'</td><td>'+fmt(o.min)+'</td><td><b>'+fmt(o.dist)+'</b></td></tr>'});
+    h+='<tr><td><b>합계</b></td><td></td><td></td><td><b>'+fmt(td)+'</b></td></tr></table>';
+  }
+  box.innerHTML=h;
+}
+
+function renderSet(){
+  var b=$('exlist');b.innerHTML='';
+  state.ex.forEach(function(e,i){
+    var r=el('div','row');r.appendChild(el('span',null,e.n+' · '+e.p+' · '+e.t));
+    var d=el('button','danger small','삭제');d.onclick=function(){if(confirm(e.n+' 종목을 목록에서 삭제할까요? (기록은 유지됩니다)')){state.ex.splice(i,1);save();renderSet();renderEx()}};
+    r.appendChild(d);b.appendChild(r);
+  });
+  $('url').value=state.url||'';
+  $('syncNote').textContent=state.url?'저장된 주소로 새 기록이 자동 전송됩니다. 전송 성공 여부는 앱에서 확인되지 않으니 구글 시트에서 확인하세요.':'주소를 넣지 않으면 이 휴대폰에만 저장됩니다.';
+  var un=state.rec.filter(function(r){return!r.sent}).length;
+  $('sub').textContent=state.rec.length+'건 기록';
+}
+
+/* CSV */
+var HEAD=['기록ID','날짜','운동부위','운동종류','기본무게','횟수1','횟수2','횟수3','횟수4','횟수5','무게1','무게2','무게3','무게4','무게5','거리','시간','비고','수행세트','운동량'];
+function csvCell(v){v=String(v);return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+function exportCsv(){
+  var lines=[HEAD.join(',')];
+  state.rec.slice().sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:a.ts-b.ts}).forEach(function(r){lines.push(sheetRow(r).map(csvCell).join(','))});
+  var blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='근력노트_'+today()+'.csv';document.body.appendChild(a);a.click();a.remove();
+  toast('CSV 파일을 내려받았습니다');
+}
+function parseCSV(t){var rows=[],row=[],f='',q=false;for(var i=0;i<t.length;i++){var c=t[i];if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=c}else{if(c==='"')q=true;else if(c===','){row.push(f);f=''}else if(c==='\n'){row.push(f);rows.push(row);row=[];f=''}else if(c!=='\r')f+=c}}if(f!==''||row.length){row.push(f);rows.push(row)}return rows}
+function normDate(s){s=String(s).trim();if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;var d=new Date(s);if(isNaN(d))return null;return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function importCsv(text){
+  var rows=parseCSV(text.replace(/^\ufeff/,'')),have={},added=0,skip=0;
+  state.rec.forEach(function(r){have[r.id]=1});
+  for(var k=1;k<rows.length;k++){
+    var c=rows[k];if(c.length<4||!c[0])continue;
+    var d=normDate(c[1]);if(!d||have[c[0]]){skip++;continue}
+    var reps=[],w=[];for(var i=0;i<5;i++){reps.push(num(c[5+i]));w.push(num(c[10+i]))}
+    var base=num(c[4]),cc=calc(reps,w,base),dist=num(c[15]);
+    var type=(c[2]==='유산소'||(cc.sets===0&&dist>0))?'유산소':'근력';
+    state.rec.push({id:c[0],ts:Date.now()+k,date:d,part:c[2],ex:c[3],type:type,base:base,reps:reps,w:w,dist:dist,min:num(c[16]),memo:c[17]||'',sets:cc.sets,vol:cc.vol,sent:true});
+    have[c[0]]=1;added++;
+    if(!findEx(c[3]))state.ex.push({n:c[3],p:c[2],t:type});
+  }
+  save();renderEx();renderList();renderSum();renderSet();
+  toast(added+'건 가져옴'+(skip?' (건너뜀 '+skip+'건)':''));
+}
+
+/* 이벤트 */
+document.querySelectorAll('nav button').forEach(function(b){
+  b.onclick=function(){
+    document.querySelectorAll('nav button').forEach(function(x){x.className=''});b.className='on';
+    document.querySelectorAll('.tab').forEach(function(x){x.className='tab'});
+    $('tab-'+b.getAttribute('data-t')).className='tab active';
+    if(b.getAttribute('data-t')==='set')renderSet();
+    window.scrollTo(0,0);
+  };
+});
+$('ex').onchange=onEx;
+['base','dist','min'].forEach(function(i){$(i).oninput=live});
+for(var j=0;j<5;j++){$('r'+j).oninput=live;$('w'+j).oninput=live}
+$('btnLast').onclick=fillLast;
+$('btnSave').onclick=saveRec;
+$('btnAddEx').onclick=function(){
+  var n=$('nn').value.trim(),p=$('np').value.trim(),t=$('nt').value;
+  if(!n||!p){toast('이름과 부위를 입력하세요');return}
+  if(findEx(n)){toast('이미 있는 종목입니다');return}
+  state.ex.push({n:n,p:t==='유산소'?'유산소':p,t:t});save();$('nn').value='';$('np').value='';renderSet();renderEx(n);toast('종목을 추가했습니다');
+};
+$('btnUrl').onclick=function(){var u=$('url').value.trim();if(u&&!/^https:\/\/script\.google\.com\//.test(u)){toast('script.google.com 주소가 아닙니다');return}state.url=u;save();renderSet();renderList();toast(u?'주소를 저장했습니다':'전송을 해제했습니다')};
+$('btnResend').onclick=function(){if(!state.url){toast('먼저 주소를 저장하세요');return}send(state.rec.slice(),false)};
+$('btnCsv').onclick=exportCsv;
+$('btnImp').onclick=function(){$('file').click()};
+$('file').onchange=function(){var f=this.files[0];if(!f)return;var rd=new FileReader();rd.onload=function(){importCsv(String(rd.result))};rd.readAsText(f,'utf-8');this.value=''};
+$('btnClear').onclick=function(){if(confirm('모든 기록을 삭제합니다. 되돌릴 수 없습니다.')&&confirm('정말 삭제할까요? (CSV 백업을 먼저 권장)')){state.rec=[];save();renderList();renderSum();renderSet();toast('삭제했습니다')}};
+
+load();
+$('date').value=today();
+renderEx();renderList();renderSum();renderSet();
+})();
+
+/* PWA: 서비스 워커 등록 */
+if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost')){
+  window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});
+}
+</script>
+</body>
+</html>
