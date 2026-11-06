@@ -56,16 +56,20 @@ td b{color:var(--orange)}
 .row{display:flex;gap:8px;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:6px}
 .note{font-size:13px;color:var(--sub);line-height:1.5;margin-top:6px}
 
-#ibar{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:8px;padding:8px 12px;background:#fff;border-bottom:1px solid var(--line);align-items:stretch}
-#ibar button{margin:0;padding:0 6px;min-height:52px;font-size:16px;border-radius:10px;width:100%}
+#ibar{display:grid;grid-template-columns:auto 1fr auto;gap:8px;padding:8px 12px;background:#fff;border-bottom:1px solid var(--line);align-items:stretch}
+#ibar button{margin:0;padding:0 12px;min-height:52px;font-size:15px;border-radius:10px;width:auto;white-space:nowrap}
+.iv-run{min-width:76px}
 .iv-btn{background:#e9ecf3;color:var(--navy)}
 .iv-run{background:var(--orange);color:#fff}
 .iv-run.on{background:#b42318}
-.ibox{border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:52px;background:#f8f9fc;line-height:1.25}
+.ibox{border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:row;align-items:center;justify-content:center;min-height:52px;background:#f8f9fc;line-height:1.25;padding:0 6px;min-width:0}
+.ic{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1 1 auto;min-width:0;white-space:nowrap}
+.ie{border-left:1px solid var(--line);margin-left:6px;padding-left:6px;flex:0 0 auto}
+.ie b{font-size:16px}
 .ibox b{font-size:17px;color:var(--navy)}
-.ibox small{font-size:13px;color:var(--sub)}
+.ibox small{font-size:12px;color:var(--sub)}
 .ibox.run{border-color:var(--orange);background:#fff8f0}
-.ibox.run small{color:#c25e00;font-weight:700}
+.ibox.run #istate,.ibox.run #iacc{color:#c25e00;font-weight:700}
 .ov{position:fixed;left:0;right:0;top:0;bottom:0;background:rgba(0,0,0,.45);z-index:20;display:flex;align-items:flex-end}
 .sheet{background:#fff;width:100%;max-width:560px;margin:0 auto;border-radius:16px 16px 0 0;padding:14px 16px calc(16px + env(safe-area-inset-bottom))}
 .sheet h3{margin:4px 2px 4px}
@@ -80,8 +84,8 @@ td b{color:var(--orange)}
 <div id="top">
 <header><h1>근력노트</h1><span id="today"></span><span id="sub"></span></header>
 <div id="ibar">
-  <button id="btnIv" class="iv-btn" type="button">⏱ Interval</button>
-  <div id="ibox" class="ibox" aria-live="off"><b id="ival">1분</b><small id="istate">대기 중</small></div>
+  <button id="btnIv" class="iv-btn" type="button">⏱ 반복시간</button>
+  <div id="ibox" class="ibox" aria-live="off"><div class="ic"><b id="ival">1분</b><small id="istate">대기 중</small></div><div class="ic ie"><small>누적</small><b id="iacc">0:00</b></div></div>
   <button id="btnRun" class="iv-run" type="button" aria-pressed="false">▶ 시작</button>
 </div>
 </div>
@@ -153,8 +157,8 @@ td b{color:var(--orange)}
   <button data-t="set">설정</button>
 </nav>
 <div id="ivSheet" class="ov" hidden>
-  <div class="sheet" role="dialog" aria-label="Interval 선택">
-    <h3>Interval 시간 선택</h3>
+  <div class="sheet" role="dialog" aria-label="반복시간 선택">
+    <h3>반복시간 선택</h3>
     <div id="ivOpts"></div>
     <div id="ivManual" hidden>
       <div class="mrow">
@@ -409,7 +413,7 @@ function refreshToday(){
 /* ===== Interval 타이머 ===== */
 var IVKEY='geunryeok_note_interval_v1';
 var PRESETS=[[30,'30초'],[60,'1분'],[90,'1분 30초'],[120,'2분']];
-var selSec=60,running=false,nextAt=0,tmr=null,actx=null,wl=null;
+var selSec=60,running=false,nextAt=0,tmr=null,actx=null,wl=null,runStart=0,lastElapsed=0;
 
 function durLabel(sec){
   var m=Math.floor(sec/60),s=sec%60;
@@ -418,6 +422,8 @@ function durLabel(sec){
   return s+'초';
 }
 function clock(sec){return Math.floor(sec/60)+':'+pad2(sec%60)}
+function clockLong(sec){var h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return h?h+':'+pad2(m)+':'+pad2(s):m+':'+pad2(s)}
+function renderAcc(){var ms=running?Date.now()-runStart:lastElapsed;$('iacc').textContent=clockLong(Math.max(0,Math.floor(ms/1000)))}
 function loadIv(){try{var v=JSON.parse(localStorage.getItem(IVKEY));if(v&&v.sec>=5&&v.sec<=3600)selSec=Math.round(v.sec)}catch(e){}}
 function saveIv(){try{localStorage.setItem(IVKEY,JSON.stringify({sec:selSec}))}catch(e){}}
 
@@ -435,8 +441,8 @@ function beep(){
     var t=a.currentTime,o=a.createOscillator(),g=a.createGain();
     o.type='sine';o.frequency.value=880;
     g.gain.setValueAtTime(0.0001,t);
-    g.gain.exponentialRampToValueAtTime(0.6,t+0.02);
-    g.gain.setValueAtTime(0.6,t+0.35);
+    g.gain.exponentialRampToValueAtTime(1.0,t+0.02);
+    g.gain.setValueAtTime(1.0,t+0.35);
     g.gain.exponentialRampToValueAtTime(0.0001,t+0.5);
     o.connect(g);g.connect(a.destination);
     o.start(t);o.stop(t+0.55);
@@ -454,12 +460,13 @@ function renderIv(){
   $('btnRun').className='iv-run'+(run?' on':'');
   $('btnRun').textContent=run?'■ 정지':'▶ 시작';
   $('btnRun').setAttribute('aria-pressed',run?'true':'false');
-  if(run)renderCount();else $('istate').textContent='대기 중';
+  if(run)renderCount();else{$('istate').textContent='대기 중';renderAcc()}
 }
 function renderCount(){
   if(!running)return;
   var rem=Math.max(0,Math.ceil((nextAt-Date.now())/1000));
   $('istate').textContent='남은 '+clock(rem);
+  renderAcc();
 }
 function tick(){
   if(!running)return;
@@ -473,12 +480,13 @@ function tick(){
 }
 function startIv(){
   getAudio();
-  running=true;nextAt=Date.now()+selSec*1000;
+  running=true;runStart=Date.now();lastElapsed=0;nextAt=runStart+selSec*1000;
   if(tmr)clearInterval(tmr);
   tmr=setInterval(tick,200);
   lockScreen();renderIv();
 }
 function stopIv(){
+  lastElapsed=Date.now()-runStart;
   running=false;
   if(tmr){clearInterval(tmr);tmr=null}
   unlockScreen();renderIv();   // 선택한 시간(selSec)은 그대로 유지
