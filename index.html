@@ -524,11 +524,11 @@ function renderSet(){
 }
 
 /* CSV */
-var HEAD=['기록ID','날짜','운동부위','운동종류','기본무게','횟수1','횟수2','횟수3','횟수4','횟수5','무게1','무게2','무게3','무게4','무게5','거리','시간','비고','수행세트','운동량','운동시간(분)'];
+var HEAD=['기록ID','날짜','운동부위','운동종류','기본무게','횟수1','횟수2','횟수3','횟수4','횟수5','무게1','무게2','무게3','무게4','무게5','거리','시간','비고','수행세트','운동량','운동시간'];
 function csvCell(v){v=String(v);return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
 function exportCsv(){
   var lines=[HEAD.join(',')];
-  state.rec.slice().sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:a.ts-b.ts}).forEach(function(r){lines.push(sheetRow(r).map(csvCell).join(','))});
+  state.rec.slice().sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:a.ts-b.ts}).forEach(function(r){var row=sheetRow(r);row[20]=r.sec>0?tmCsv(r.sec):'';lines.push(row.map(csvCell).join(','))});
   var blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='근력노트_'+today()+'.csv';document.body.appendChild(a);a.click();a.remove();
   toast('CSV 파일을 내려받았습니다');
@@ -545,7 +545,7 @@ function importCsv(text){
     var reps=[],w=[];for(var i=0;i<5;i++){reps.push(num(c[5+i]));w.push(num(c[10+i]))}
     var base=num(c[4]),cc=calc(reps,w,base),dist=num(c[15]);
     var type=(c[2]==='유산소'||(cc.sets===0&&dist>0))?'유산소':'근력';
-    state.rec.push({id:c[0],ts:Date.now()+k,date:d,part:c[2],ex:c[3],type:type,base:base,reps:reps,w:w,dist:dist,min:num(c[16]),memo:c[17]||'',sets:cc.sets,vol:cc.vol,sec:(c[20]?Math.round(num(c[20])*60):0),sent:true});
+    state.rec.push({id:c[0],ts:Date.now()+k,date:d,part:c[2],ex:c[3],type:type,base:base,reps:reps,w:w,dist:dist,min:num(c[16]),memo:c[17]||'',sets:cc.sets,vol:cc.vol,sec:parseTm(c[20]),sent:true});
     have[c[0]]=1;added++;
     if(!findEx(c[3]))state.ex.push({n:c[3],p:c[2],t:type});
   }
@@ -798,6 +798,15 @@ function refreshToday(){
 
 /* ===== 운동시간 도우미 ===== */
 function tmKo(sec){sec=Math.round(sec);var h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),x=sec%60;if(h)return h+'시간 '+m+'분';if(m)return m+'분'+(x?' '+x+'초':'');return x+'초'}
+function tmCsv(sec){sec=Math.round(sec);var h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),x=sec%60;return (h?h+'시간':'')+(m?m+'분':'')+((x||(!h&&!m))?x+'초':'')}   /* CSV 표기: 10분30초 */
+function parseTm(v){
+  v=String(v==null?'':v).trim();if(!v)return 0;
+  var k=v.match(/^(?:(\d+)시간)?\s*(?:(\d+)분)?\s*(?:(\d+)초)?$/);
+  if(k&&(k[1]||k[2]||k[3]))return (+k[1]||0)*3600+(+k[2]||0)*60+(+k[3]||0);
+  var c=v.match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?$/);
+  if(c)return c[3]!==undefined?(+c[1])*3600+(+c[2])*60+(+c[3]):(+c[1])*60+(+c[2]);
+  return Math.round(num(v)*60);   /* 이전 CSV의 분 단위 숫자 */
+}
 function secSum(a){var n=0;a.forEach(function(r){n+=r.sec||0});return n}
 function tmDelta(cur,prev){
   if(!(prev>0))return cur>0?'<span class="dl new">첫 기록</span>':'';
