@@ -37,6 +37,7 @@ button{font-size:17px;border:0;border-radius:12px;padding:14px;width:100%;margin
 .ghost{background:#e9ecf3;color:var(--navy)}
 .danger{background:#fde8e8;color:#b42318}
 .small{width:auto;padding:8px 12px;font-size:14px;margin:0}
+.lrow{display:flex;justify-content:space-between;align-items:flex-end}.lrow label{margin-bottom:0}
 nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:env(safe-area-inset-bottom)}
 nav button{margin:0;border-radius:0;background:#fff;color:var(--sub);padding:14px 4px;font-size:15px}
 nav button.on{color:var(--orange);border-top:3px solid var(--orange);padding-top:11px}
@@ -130,10 +131,19 @@ td b{color:var(--orange)}
 <section class="tab active" id="tab-in">
   <label for="date">날짜</label>
   <input type="date" id="date">
-  <label for="ex">운동 종목</label>
+  <div class="lrow"><label for="ex">운동 종목</label><button type="button" class="ghost small ordbtn"></button></div>
   <select id="ex"></select>
   <div class="meta" id="meta"></div>
   <button class="ghost" id="btnLast">지난번 기록 불러오기</button>
+  <button class="ghost" id="btnNewEx" type="button">＋ 새 종목 추가</button>
+  <div id="newExBox" hidden>
+    <label for="xn">새 종목 이름</label><input id="xn" type="text" placeholder="예: 데드리프트">
+    <label for="xp">부위 (목록에서 고르거나 직접 입력)</label><input id="xp" type="text" list="partList" placeholder="예: 등 (유산소는 '유산소')">
+    <label for="xt">유형</label>
+    <select id="xt"><option>근력</option><option>유산소</option></select>
+    <button class="primary" id="btnAddEx2" type="button">종목 추가</button>
+  </div>
+  <datalist id="partList"></datalist>
 
   <div id="strength">
     <label for="base">기본무게 (kg) · 맨몸이면 0</label>
@@ -183,10 +193,10 @@ td b{color:var(--orange)}
 <section class="tab" id="tab-chk"><div id="chkBody"></div></section>
 
 <section class="tab" id="tab-set">
-  <h3>운동 종목 관리</h3>
+  <h3>운동 종목 관리<button type="button" class="ghost small ordbtn"></button></h3>
   <div id="exlist"></div>
   <label for="nn">새 종목 이름</label><input id="nn" type="text" placeholder="예: 데드리프트">
-  <label for="np">부위</label><input id="np" type="text" placeholder="예: 등 (유산소는 '유산소')">
+  <label for="np">부위</label><input id="np" type="text" list="partList" placeholder="예: 등 (유산소는 '유산소')">
   <label for="nt">유형</label>
   <select id="nt"><option>근력</option><option>유산소</option></select>
   <button class="ghost" id="btnAddEx">종목 추가</button>
@@ -260,7 +270,7 @@ for(var i=0;i<5;i++){
 
 function renderEx(keep){
   var sel=$('ex'),cur=keep||sel.value;sel.innerHTML='';
-  state.ex.slice().sort(function(a,b){return koCmp(a.n,b.n)}).forEach(function(e){var o=document.createElement('option');o.value=e.n;o.textContent=e.n;sel.appendChild(o)});
+  state.ex.slice().sort(function(a,b){return exCmp(a.n,b.n)}).forEach(function(e){var o=document.createElement('option');o.value=e.n;o.textContent=e.n;sel.appendChild(o)});
   if(cur&&findEx(cur))sel.value=cur;
   onEx();
 }
@@ -337,35 +347,46 @@ function saveRec(){
 }
 
 /* ===== 보기 설정(필터·정렬) ===== */
-var view={ex:'all',sort:'new',sum:'amt'},VKEY='geunryeok_note_view_v1';
-function loadView(){try{var v=JSON.parse(localStorage.getItem(VKEY));if(v){if(typeof v.ex==='string')view.ex=v.ex;if(typeof v.sort==='string')view.sort=v.sort;if(typeof v.sum==='string')view.sum=v.sum}}catch(e){}}
+var view={ex:'all',sort:'new',sum:'amt',exo:'asc'},VKEY='geunryeok_note_view_v1';
+function loadView(){try{var v=JSON.parse(localStorage.getItem(VKEY));if(v){if(typeof v.ex==='string')view.ex=v.ex;if(typeof v.sort==='string')view.sort=v.sort;if(typeof v.sum==='string')view.sum=v.sum;if(v.exo==='asc'||v.exo==='desc')view.exo=v.exo}}catch(e){}}
 function saveView(){try{localStorage.setItem(VKEY,JSON.stringify(view))}catch(e){}}
 function recType(r){return r.type||(r.sets?'근력':'유산소')}
 function recScore(r){return recType(r)==='유산소'?r.dist:r.vol}
 function koCmp(a,b){return String(a).localeCompare(String(b),'ko')}
+function exCmp(a,b){var c=koCmp(a,b);return view.exo==='desc'?-c:c}
+function pkey(p){return String(p||'').replace(/\s+/g,'')}
+function ordLabel(){var t=view.exo==='desc'?'가나다 ▼ 내림차순':'가나다 ▲ 오름차순';document.querySelectorAll('.ordbtn').forEach(function(b){b.textContent=t})}
+function refreshParts(){var d=$('partList');if(!d)return;d.innerHTML='';var seen={};state.ex.forEach(function(e){var k=pkey(e.p);if(k&&!seen[k]){seen[k]=1;var o=document.createElement('option');o.value=e.p;d.appendChild(o)}})}
 function cmpNew(a,b){return a.date<b.date?1:a.date>b.date?-1:b.ts-a.ts}
 function cmpOld(a,b){return a.date<b.date?-1:a.date>b.date?1:a.ts-b.ts}
 function matchView(r){
   var v=view.ex;
   if(v==='all')return true;
-  if(v.indexOf('p:')===0)return r.part===v.slice(2);
-  return r.ex===v.slice(2);
+  if(v.indexOf('p:')===0)return pkey(r.part)===pkey(v.slice(2));
+  return (r.ex||'')===v.slice(2);
 }
 /* 기록이 추가·삭제될 때마다 종목 목록을 기록에서 다시 만든다 */
 function buildFilter(){
   var sel=$('fEx'),parts={},total=0;
-  state.rec.forEach(function(r){var p=parts[r.part]||(parts[r.part]={n:0,ex:{}});p.n++;p.ex[r.ex]=(p.ex[r.ex]||0)+1;total++});
+  state.rec.forEach(function(r){
+    var k=pkey(r.part),p=parts[k]||(parts[k]={n:0,ex:{},names:{}});
+    p.n++;p.names[r.part||'']=(p.names[r.part||'']||0)+1;
+    var en=r.ex||'';p.ex[en]=(p.ex[en]||0)+1;total++;
+  });
   sel.innerHTML='';
   var o=document.createElement('option');o.value='all';o.textContent='전체 종목 ('+total+')';sel.appendChild(o);
-  Object.keys(parts).sort(koCmp).forEach(function(pn){
-    var g=document.createElement('optgroup');g.label=pn;
-    if(Object.keys(parts[pn].ex).length>1){var po=document.createElement('option');po.value='p:'+pn;po.textContent=pn+' 전체 ('+parts[pn].n+')';g.appendChild(po)}
-    Object.keys(parts[pn].ex).sort(koCmp).forEach(function(en){
-      var eo=document.createElement('option');eo.value='e:'+en;eo.textContent=en+' ('+parts[pn].ex[en]+')';g.appendChild(eo);
+  Object.keys(parts).sort(exCmp).forEach(function(k){
+    var p=parts[k],label='(부위 없음)',best=0;
+    Object.keys(p.names).forEach(function(nm){if(nm&&p.names[nm]>best){best=p.names[nm];label=nm}});
+    var g=document.createElement('optgroup');g.label=label;
+    var exn=Object.keys(p.ex);
+    if(exn.length>1){var po=document.createElement('option');po.value='p:'+k;po.textContent=label+' 전체 ('+p.n+')';g.appendChild(po)}
+    exn.sort(exCmp).forEach(function(en){
+      var eo=document.createElement('option');eo.value='e:'+en;eo.textContent=(en||'(종목명 없음)')+' ('+p.ex[en]+')';g.appendChild(eo);
     });
     sel.appendChild(g);
   });
-  if(view.ex.indexOf('p:')===0){var pk=parts[view.ex.slice(2)];if(pk){var ks=Object.keys(pk.ex);if(ks.length===1)view.ex='e:'+ks[0]}}
+  if(view.ex.indexOf('p:')===0){var pk=parts[pkey(view.ex.slice(2))];if(pk){var ks=Object.keys(pk.ex);if(ks.length===1)view.ex='e:'+ks[0];else view.ex='p:'+pkey(view.ex.slice(2))}}
   sel.value=view.ex;
   if(sel.value!==view.ex){view.ex='all';sel.value='all'}
   $('fSort').value=view.sort;
@@ -460,7 +481,7 @@ function renderSum(){
 
 function renderSet(){
   var b=$('exlist');b.innerHTML='';
-  state.ex.map(function(e,i){return{e:e,i:i}}).sort(function(a,b){return koCmp(a.e.n,b.e.n)}).forEach(function(it){
+  state.ex.map(function(e,i){return{e:e,i:i}}).sort(function(a,b){return exCmp(a.e.n,b.e.n)}).forEach(function(it){
     var e=it.e,i=it.i;
     var r=el('div','row');r.appendChild(el('span',null,e.n+' · '+e.p+' · '+e.t));
     var d=el('button','danger small','삭제');d.onclick=function(){if(confirm(e.n+' 종목을 목록에서 삭제할까요? (기록은 유지됩니다)')){state.ex.splice(i,1);save();renderSet();renderEx()}};
@@ -679,12 +700,20 @@ $('ex').onchange=onEx;
 for(var j=0;j<5;j++){$('r'+j).oninput=live;$('w'+j).oninput=live}
 $('btnLast').onclick=fillLast;
 $('btnSave').onclick=saveRec;
-$('btnAddEx').onclick=function(){
-  var n=$('nn').value.trim(),p=$('np').value.trim(),t=$('nt').value;
-  if(!n||!p){toast('이름과 부위를 입력하세요');return}
-  if(findEx(n)){toast('이미 있는 종목입니다');return}
-  state.ex.push({n:n,p:t==='유산소'?'유산소':p,t:t});save();$('nn').value='';$('np').value='';renderSet();renderEx(n);toast('종목을 추가했습니다');
-};
+function addEx(n,p,t,after){
+  n=n.trim();p=p.trim();
+  if(!n||(!p&&t!=='유산소')){toast('이름과 부위를 입력하세요');return false}
+  if(findEx(n)){toast('이미 있는 종목입니다');return false}
+  if(t==='유산소')p='유산소';
+  else{for(var i=0;i<state.ex.length;i++){if(pkey(state.ex[i].p)===pkey(p)){p=state.ex[i].p;break}}} /* 공백만 다른 부위명은 기존 이름으로 통일 */
+  state.ex.push({n:n,p:p,t:t});save();renderSet();renderEx(n);refreshParts();toast('종목을 추가했습니다');
+  if(after)after();
+  return true;
+}
+$('btnAddEx').onclick=function(){addEx($('nn').value,$('np').value,$('nt').value,function(){$('nn').value='';$('np').value=''})};
+$('btnNewEx').onclick=function(){var b=$('newExBox');b.hidden=!b.hidden;if(!b.hidden)$('xn').focus()};
+$('btnAddEx2').onclick=function(){addEx($('xn').value,$('xp').value,$('xt').value,function(){$('xn').value='';$('xp').value='';$('newExBox').hidden=true})};
+document.querySelectorAll('.ordbtn').forEach(function(b){b.onclick=function(){view.exo=view.exo==='desc'?'asc':'desc';saveView();ordLabel();renderEx();renderSet();renderList()}});
 $('btnUrl').onclick=function(){var u=$('url').value.trim();if(u&&!/^https:\/\/script\.google\.com\//.test(u)){toast('script.google.com 주소가 아닙니다');return}state.url=u;save();renderSet();renderList();toast(u?'주소를 저장했습니다':'전송을 해제했습니다')};
 $('btnResend').onclick=function(){if(!state.url){toast('먼저 주소를 저장하세요');return}send(state.rec.slice(),false)};
 $('btnCsv').onclick=exportCsv;
@@ -826,7 +855,7 @@ document.addEventListener('visibilitychange',function(){
 setInterval(refreshToday,60000);
 loadIv();refreshToday();renderIv();
 
-load();loadView();
+load();loadView();ordLabel();refreshParts();
 $('date').value=today();
 renderEx();renderList();renderSum();renderSet();
 })();
