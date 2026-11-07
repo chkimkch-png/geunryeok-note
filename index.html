@@ -260,7 +260,7 @@ for(var i=0;i<5;i++){
 
 function renderEx(keep){
   var sel=$('ex'),cur=keep||sel.value;sel.innerHTML='';
-  state.ex.forEach(function(e){var o=document.createElement('option');o.value=e.n;o.textContent=e.n;sel.appendChild(o)});
+  state.ex.slice().sort(function(a,b){return koCmp(a.n,b.n)}).forEach(function(e){var o=document.createElement('option');o.value=e.n;o.textContent=e.n;sel.appendChild(o)});
   if(cur&&findEx(cur))sel.value=cur;
   onEx();
 }
@@ -359,12 +359,13 @@ function buildFilter(){
   var o=document.createElement('option');o.value='all';o.textContent='전체 종목 ('+total+')';sel.appendChild(o);
   Object.keys(parts).sort(koCmp).forEach(function(pn){
     var g=document.createElement('optgroup');g.label=pn;
-    var po=document.createElement('option');po.value='p:'+pn;po.textContent=pn+' 전체 ('+parts[pn].n+')';g.appendChild(po);
+    if(Object.keys(parts[pn].ex).length>1){var po=document.createElement('option');po.value='p:'+pn;po.textContent=pn+' 전체 ('+parts[pn].n+')';g.appendChild(po)}
     Object.keys(parts[pn].ex).sort(koCmp).forEach(function(en){
       var eo=document.createElement('option');eo.value='e:'+en;eo.textContent=en+' ('+parts[pn].ex[en]+')';g.appendChild(eo);
     });
     sel.appendChild(g);
   });
+  if(view.ex.indexOf('p:')===0){var pk=parts[view.ex.slice(2)];if(pk){var ks=Object.keys(pk.ex);if(ks.length===1)view.ex='e:'+ks[0]}}
   sel.value=view.ex;
   if(sel.value!==view.ex){view.ex='all';sel.value='all'}
   $('fSort').value=view.sort;
@@ -459,7 +460,8 @@ function renderSum(){
 
 function renderSet(){
   var b=$('exlist');b.innerHTML='';
-  state.ex.forEach(function(e,i){
+  state.ex.map(function(e,i){return{e:e,i:i}}).sort(function(a,b){return koCmp(a.e.n,b.e.n)}).forEach(function(it){
+    var e=it.e,i=it.i;
     var r=el('div','row');r.appendChild(el('span',null,e.n+' · '+e.p+' · '+e.t));
     var d=el('button','danger small','삭제');d.onclick=function(){if(confirm(e.n+' 종목을 목록에서 삭제할까요? (기록은 유지됩니다)')){state.ex.splice(i,1);save();renderSet();renderEx()}};
     r.appendChild(d);b.appendChild(r);
