@@ -91,7 +91,7 @@ td b{color:var(--orange)}
 .fbar{display:grid;grid-template-columns:1.35fr 1fr;gap:8px;margin-bottom:4px}
 .fbar.one{grid-template-columns:1fr}
 .fbar select{padding:11px 10px;font-size:15px}
-.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:#e4e8f0;padding:4px;border-radius:12px}
+.seg{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;background:#e4e8f0;padding:4px;border-radius:12px}
 .seg button{margin:0;padding:10px 0;font-size:15px;border-radius:9px;background:transparent;color:var(--sub);width:100%}
 .seg button.on{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .pnav{display:flex;align-items:center;justify-content:space-between;margin:12px 0 4px}
@@ -638,6 +638,35 @@ function renderToday(){
   });
   return h;
 }
+function renderPrev(){
+  var t=today(),pd='';
+  state.rec.forEach(function(r){if(r.date<t&&r.date>pd)pd=r.date});
+  if(!pd)return '<h3>이전 운동일과 오늘 비교</h3><p class="empty">오늘 이전의 운동 기록이 없습니다.</p>';
+  var pr=state.rec.filter(function(r){return r.date===pd}),cr=state.rec.filter(function(r){return r.date===t});
+  var P=aggregate(pr),C=aggregate(cr),names=Object.keys(P);
+  Object.keys(C).forEach(function(n){if(!P[n])names.push(n)});
+  function base(n){return C[n]||P[n]}
+  function best(n){return Math.max(C[n]?mval(C[n]):0,P[n]?mval(P[n]):0)}
+  names.sort(function(a,b){var ta=base(a).type==='유산소'?1:0,tb=base(b).type==='유산소'?1:0;return ta-tb||best(b)-best(a)||koCmp(a,b)});
+  var sv=sumBy(cr,function(r){return recType(r)==='유산소'?0:r.vol}),psv=sumBy(pr,function(r){return recType(r)==='유산소'?0:r.vol});
+  var cd=sumBy(cr,function(r){return recType(r)==='유산소'?r.dist:0}),pcd=sumBy(pr,function(r){return recType(r)==='유산소'?r.dist:0});
+  var cn=Object.keys(C).length,pn=Object.keys(P).length;
+  var h='<h3>이전 '+pd+' ('+wd(pd)+') → 오늘<em>직전 운동일과 비교</em></h3>';
+  h+='<div class="sumcards">'
+    +'<div class="sc"><small>근력 운동량</small><b>'+fmt(sv)+'kg</b><small>이전 '+fmt(psv)+'kg</small><br>'+(delta(sv,psv,'kg')||'&nbsp;')+'</div>'
+    +'<div class="sc"><small>유산소 거리</small><b>'+fmt(cd)+'km</b><small>이전 '+fmt(pcd)+'km</small><br>'+(delta(cd,pcd,'km')||'&nbsp;')+'</div>'
+    +'<div class="sc"><small>운동 종목 수</small><b>'+cn+'개</b><small>이전 '+pn+'개</small><br>'+(delta(cn,pn,'개')||'&nbsp;')+'</div></div>';
+  if(!cr.length)h+='<div class="meta">오늘 입력한 기록이 없어 오늘 값은 0으로 비교됩니다.</div>';
+  names.forEach(function(n){
+    var c=C[n],p=P[n],b=base(n),u=munit(b),cv=c?mval(c):0,pv=p?mval(p):0,mx=Math.max(cv,pv),cls=b.type==='유산소'?'c':'s';
+    var badge=!c?'<span class="dl same">오늘 미실시</span>':!p?'<span class="dl new">오늘 신규</span>':delta(cv,pv,u);
+    h+='<div class="brow"><div class="top"><span class="bn">'+esc(n)+'<small>'+esc(b.part)+'</small></span>'+badge+'</div>';
+    if(p)h+=barLine('이전 '+md(pd),pv,mx,u,'g');
+    if(c)h+=barLine('오늘',cv,mx,u,cls);
+    h+=todayDetail(c||p,c?p:null)+'</div>';
+  });
+  return h;
+}
 function sumBy(rs,fn){var s=0;rs.forEach(function(r){s+=fn(r)});return s}
 function uniqDays(rs){var d={};rs.forEach(function(r){d[r.date]=1});return Object.keys(d).length}
 function typeBars(A,P,type){
@@ -692,10 +721,10 @@ function renderPeriod(mode){
   return h;
 }
 function renderChk(){
-  var seg='<div class="seg">'+[['today','오늘'],['week','주간'],['month','월간'],['year','연간']].map(function(x){
+  var seg='<div class="seg">'+[['prev','이전'],['today','오늘'],['week','주간'],['month','월간'],['year','연간']].map(function(x){
     return '<button type="button" data-m="'+x[0]+'" class="'+(chk.mode===x[0]?'on':'')+'">'+x[1]+'</button>';
   }).join('')+'</div>';
-  $('chkBody').innerHTML=seg+(chk.mode==='today'?renderToday():renderPeriod(chk.mode));
+  $('chkBody').innerHTML=seg+(chk.mode==='prev'?renderPrev():chk.mode==='today'?renderToday():renderPeriod(chk.mode));
 }
 $('tab-chk').addEventListener('click',function(e){
   var b=e.target&&e.target.closest?e.target.closest('button'):null;if(!b)return;
