@@ -69,6 +69,9 @@ td b{color:var(--orange)}
 
 #ibar{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:6px;padding:8px 10px;background:#fff;border-bottom:1px solid var(--line);align-items:stretch}
 #ibar button{margin:0;padding:0 9px;min-height:52px;font-size:14px;border-radius:10px;width:auto;white-space:nowrap}
+.lrow{display:flex;justify-content:space-between;align-items:flex-end}.lrow label{margin-bottom:6px}
+#btnCnt{width:auto;min-width:92px;min-height:62px;margin:8px 0 4px;padding:2px 16px;font-size:40px;font-weight:800;line-height:1.1;border-radius:14px;background:var(--navy);color:#fff;font-variant-numeric:tabular-nums;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+#btnCnt.max{background:var(--orange)}
 .iv-run{min-width:68px}
 .iv-save{min-width:48px;background:var(--navy);color:#fff}
 .iv-btn{background:#e9ecf3;color:var(--navy)}
@@ -141,7 +144,7 @@ td b{color:var(--orange)}
 <main>
 
 <section class="tab active" id="tab-in">
-  <label for="date">날짜</label>
+  <div class="lrow"><label for="date">날짜</label><button type="button" id="btnCnt" aria-label="세트 카운터">0</button></div>
   <input type="date" id="date">
   <label for="exBtn">운동 종목</label>
   <button type="button" id="exBtn" class="selbtn" aria-haspopup="dialog"><span id="exBtnTxt"></span><i>▾</i></button>
@@ -345,7 +348,7 @@ function sheetRow(r){
   var row=[r.id,r.date,r.part,r.ex,r.base];
   for(var i=0;i<5;i++)row.push(r.reps[i]||'');
   for(i=0;i<5;i++)row.push(r.w[i]||'');
-  row.push(r.dist||'',r.min||'',r.memo||'',r.sets,r.vol,r.sec>0?Math.round(r.sec/60*100)/100:'');   /* U열: 운동시간(분) */
+  row.push(r.dist||'',r.min||'',r.memo||'',r.sets,r.vol,r.sec>0?tmKo(r.sec):'');   /* U열: 운동시간 (예: 1분 20초) */
   return row;
 }
 function send(recs,quiet,upd){
@@ -528,7 +531,7 @@ var HEAD=['기록ID','날짜','운동부위','운동종류','기본무게','횟�
 function csvCell(v){v=String(v);return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
 function exportCsv(){
   var lines=[HEAD.join(',')];
-  state.rec.slice().sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:a.ts-b.ts}).forEach(function(r){var row=sheetRow(r);row[20]=r.sec>0?tmCsv(r.sec):'';lines.push(row.map(csvCell).join(','))});
+  state.rec.slice().sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:a.ts-b.ts}).forEach(function(r){lines.push(sheetRow(r).map(csvCell).join(','))});
   var blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='근력노트_'+today()+'.csv';document.body.appendChild(a);a.click();a.remove();
   toast('CSV 파일을 내려받았습니다');
@@ -797,8 +800,8 @@ function refreshToday(){
 }
 
 /* ===== 운동시간 도우미 ===== */
-function tmKo(sec){sec=Math.round(sec);var h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),x=sec%60;if(h)return h+'시간 '+m+'분';if(m)return m+'분'+(x?' '+x+'초':'');return x+'초'}
-function tmCsv(sec){sec=Math.round(sec);var h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),x=sec%60;return (h?h+'시간':'')+(m?m+'분':'')+((x||(!h&&!m))?x+'초':'')}   /* CSV 표기: 10분30초 */
+function tmKo(sec){sec=Math.round(sec);var h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),x=sec%60,a=[];if(h)a.push(h+'시간');if(m)a.push(m+'분');if(x||!a.length)a.push(x+'초');return a.join(' ')}
+function tmCsv(sec){return tmKo(sec)}   /* CSV·시트 표기도 앱과 동일: 1분 20초 */
 function parseTm(v){
   v=String(v==null?'':v).trim();if(!v)return 0;
   var k=v.match(/^(?:(\d+)시간)?\s*(?:(\d+)분)?\s*(?:(\d+)초)?$/);
@@ -963,7 +966,23 @@ document.addEventListener('visibilitychange',function(){
 setInterval(refreshToday,60000);
 loadIv();refreshToday();renderIv();
 
-load();loadView();ordLabel();refreshParts();
+/* 세트 카운터: 누를 때마다 +1 (0~50), 길게 누르면 0으로 초기화, 앱을 닫아도 값 유지 */
+var CNTKEY='geunryeok-note-counter',CNTMAX=50,cnt=0,cTimer=null,cLong=false;
+try{cnt=Math.min(CNTMAX,Math.max(0,parseInt(localStorage.getItem(CNTKEY),10)||0))}catch(e){}
+function renderCnt(){var b=$('btnCnt');b.textContent=cnt;b.className=cnt>=CNTMAX?'max':'';b.setAttribute('aria-label','세트 카운터 '+cnt)}
+function setCnt(n){cnt=n;try{localStorage.setItem(CNTKEY,String(cnt))}catch(e){}renderCnt()}
+(function(){
+  var b=$('btnCnt');
+  b.addEventListener('pointerdown',function(){cLong=false;clearTimeout(cTimer);cTimer=setTimeout(function(){cLong=true;if(cnt>0){setCnt(0);toast('카운터를 0으로 초기화했습니다')}if(navigator.vibrate)navigator.vibrate(30)},700)});
+  ['pointerup','pointerleave','pointercancel'].forEach(function(ev){b.addEventListener(ev,function(){clearTimeout(cTimer)})});
+  b.addEventListener('click',function(){
+    if(cLong){cLong=false;return}
+    if(cnt>=CNTMAX){toast('최대 '+CNTMAX+'입니다 · 길게 누르면 0으로 초기화');return}
+    setCnt(cnt+1);if(navigator.vibrate)navigator.vibrate(10);
+  });
+  b.addEventListener('contextmenu',function(e){e.preventDefault()});
+})();
+load();loadView();ordLabel();refreshParts();renderCnt();
 $('date').value=today();
 renderEx();renderList();renderSum();renderSet();
 })();
