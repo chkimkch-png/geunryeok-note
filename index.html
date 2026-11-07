@@ -472,8 +472,8 @@ function renderSum(){
   if(!state.rec.length){box.innerHTML='<p class="empty">기록이 쌓이면 누적이 표시됩니다.</p>';return}
   var m={};
   state.rec.forEach(function(r){
-    var o=m[r.ex]||(m[r.ex]={days:{},vol:0,dist:0,min:0,max:0,last:'',type:recType(r),part:r.part});
-    o.days[r.date]=1;o.vol+=r.vol;o.dist+=r.dist;o.min+=r.min;
+    var o=m[r.ex]||(m[r.ex]={days:{},cnt:0,vol:0,dist:0,min:0,max:0,last:'',type:recType(r),part:r.part});
+    o.days[r.date]=1;o.cnt++;o.vol+=r.vol;o.dist+=r.dist;o.min+=r.min;
     if(r.date>o.last)o.last=r.date;
     for(var i=0;i<5;i++){if(r.reps[i]>0){var w=r.w[i]>0?r.w[i]:r.base;if(w>o.max)o.max=w}}
   });
@@ -490,12 +490,12 @@ function renderSum(){
   var h='',tv=0,td=0;
   if(st.length){
     h+='<h3>근력 운동</h3><table><tr><th>종목</th><th>운동일</th><th>최고무게</th><th>누적 운동량(kg)</th></tr>';
-    st.forEach(function(n){var o=m[n];tv+=o.vol;h+='<tr><td>'+esc(n)+'</td><td>'+Object.keys(o.days).length+'</td><td>'+fmt(o.max)+'</td><td><b>'+fmt(o.vol)+'</b></td></tr>'});
+    st.forEach(function(n){var o=m[n];tv+=o.vol;h+='<tr><td>'+esc(n)+'</td><td>'+Object.keys(o.days).length+'('+o.cnt+')</td><td>'+fmt(o.max)+'</td><td><b>'+fmt(o.vol)+'</b></td></tr>'});
     h+='<tr><td><b>합계</b></td><td></td><td></td><td><b>'+fmt(tv)+'</b></td></tr></table>';
   }
   if(ca.length){
     h+='<h3>유산소 운동</h3><table><tr><th>종목</th><th>운동일</th><th>누적 시간(분)</th><th>누적 거리(km)</th></tr>';
-    ca.forEach(function(n){var o=m[n];td+=o.dist;h+='<tr><td>'+esc(n)+'</td><td>'+Object.keys(o.days).length+'</td><td>'+fmt(o.min)+'</td><td><b>'+fmt(o.dist)+'</b></td></tr>'});
+    ca.forEach(function(n){var o=m[n];td+=o.dist;h+='<tr><td>'+esc(n)+'</td><td>'+Object.keys(o.days).length+'('+o.cnt+')</td><td>'+fmt(o.min)+'</td><td><b>'+fmt(o.dist)+'</b></td></tr>'});
     h+='<tr><td><b>합계</b></td><td></td><td></td><td><b>'+fmt(td)+'</b></td></tr></table>';
   }
   box.innerHTML=h;
@@ -623,47 +623,48 @@ function todayDetail(c,p){
   }
   return '<div class="bsub">'+a.join(' · ')+'</div>';
 }
+function sortToday(A){
+  return Object.keys(A).sort(function(a,b){var ta=A[a].type==='유산소'?1:0,tb=A[b].type==='유산소'?1:0;return ta-tb||mval(A[b])-mval(A[a])||koCmp(a,b)});
+}
+/* 오늘: 이전 기록과 비교하지 않고 오늘 수행한 내용만 표시 */
 function renderToday(){
   var t=today(),recs=state.rec.filter(function(r){return r.date===t});
-  var h='<h3>오늘 '+t+' ('+wd(t)+')<em>직전 같은 종목 운동과 비교</em></h3>';
-  if(!recs.length)return h+'<p class="empty">오늘 입력한 기록이 없습니다.<br>운동을 저장하면 직전 운동과 비교해 보여 드립니다.</p>';
-  var A=aggregate(recs),names=Object.keys(A);
-  names.sort(function(a,b){var ta=A[a].type==='유산소'?1:0,tb=A[b].type==='유산소'?1:0;return ta-tb||mval(A[b])-mval(A[a])||koCmp(a,b)});
+  var h='<h3>오늘 '+t+' ('+wd(t)+')<em>오늘 수행한 운동</em></h3>';
+  if(!recs.length)return h+'<p class="empty">오늘 입력한 기록이 없습니다.</p>';
+  var A=aggregate(recs),names=sortToday(A),mx={'근력':0,'유산소':0};
+  names.forEach(function(n){var k=A[n].type==='유산소'?'유산소':'근력';mx[k]=Math.max(mx[k],mval(A[n]))});
   names.forEach(function(n){
-    var c=A[n],p=prevOf(n,t),u=munit(c),cv=mval(c),pv=p?mval(p):0,mx=Math.max(cv,pv),cls=c.type==='유산소'?'c':'s';
+    var c=A[n],u=munit(c),cv=mval(c),isC=c.type==='유산소',cls=isC?'c':'s';
+    h+='<div class="brow"><div class="top"><span class="bn">'+esc(n)+'<small>'+esc(c.part)+'</small></span><span><b>'+fmt(cv)+u+'</b></span></div>'
+      +'<div class="btrack"><div class="bfill '+cls+'" style="width:'+barW(cv,mx[isC?'유산소':'근력']).toFixed(1)+'%"></div></div>'
+      +todayDetail(c,null)+'</div>';
+  });
+  return h;
+}
+/* 이전: 오늘 수행한 종목만, 각 종목의 직전 기록과 비교 */
+function renderPrev(){
+  var t=today(),recs=state.rec.filter(function(r){return r.date===t});
+  var h='<h3>이전 기록과 비교<em>오늘 수행한 종목만</em></h3>';
+  if(!recs.length)return h+'<p class="empty">오늘 입력한 기록이 없습니다.<br>운동을 저장하면 각 종목의 직전 기록과 비교해 보여 드립니다.</p>';
+  var A=aggregate(recs),names=sortToday(A),PV={},sv=0,psv=0,cd=0,pcd=0,hasPrev=0;
+  names.forEach(function(n){
+    var p=prevOf(n,t);PV[n]=p;if(!p)return;
+    hasPrev++;
+    if(A[n].type==='유산소'){cd+=A[n].dist;pcd+=p.dist}else{sv+=A[n].vol;psv+=p.vol}
+  });
+  if(hasPrev){
+    h+='<div class="sumcards">'
+      +((sv>0||psv>0)?'<div class="sc"><small>근력 운동량</small><b>'+fmt(sv)+'kg</b><small>이전 '+fmt(psv)+'kg</small><br>'+(delta(sv,psv,'kg')||'&nbsp;')+'</div>':'')
+      +((cd>0||pcd>0)?'<div class="sc"><small>유산소 거리</small><b>'+fmt(cd)+'km</b><small>이전 '+fmt(pcd)+'km</small><br>'+(delta(cd,pcd,'km')||'&nbsp;')+'</div>':'')
+      +'<div class="sc"><small>비교 종목</small><b>'+hasPrev+'개</b><small>오늘 '+names.length+'개 중</small></div></div>'
+      +'<div class="meta">합계는 직전 기록이 있는 종목만 비교한 값입니다.</div>';
+  }
+  names.forEach(function(n){
+    var c=A[n],p=PV[n],u=munit(c),cv=mval(c),pv=p?mval(p):0,mx=Math.max(cv,pv),cls=c.type==='유산소'?'c':'s';
     h+='<div class="brow"><div class="top"><span class="bn">'+esc(n)+'<small>'+esc(c.part)+'</small></span>'+(p?delta(cv,pv,u):'<span class="dl new">첫 기록</span>')+'</div>';
     if(p)h+=barLine('이전 '+md(p.date),pv,mx,u,'g');
     h+=barLine('오늘',cv,mx,u,cls);
     h+=todayDetail(c,p)+'</div>';
-  });
-  return h;
-}
-function renderPrev(){
-  var t=today(),pd='';
-  state.rec.forEach(function(r){if(r.date<t&&r.date>pd)pd=r.date});
-  if(!pd)return '<h3>이전 운동일과 오늘 비교</h3><p class="empty">오늘 이전의 운동 기록이 없습니다.</p>';
-  var pr=state.rec.filter(function(r){return r.date===pd}),cr=state.rec.filter(function(r){return r.date===t});
-  var P=aggregate(pr),C=aggregate(cr),names=Object.keys(P);
-  Object.keys(C).forEach(function(n){if(!P[n])names.push(n)});
-  function base(n){return C[n]||P[n]}
-  function best(n){return Math.max(C[n]?mval(C[n]):0,P[n]?mval(P[n]):0)}
-  names.sort(function(a,b){var ta=base(a).type==='유산소'?1:0,tb=base(b).type==='유산소'?1:0;return ta-tb||best(b)-best(a)||koCmp(a,b)});
-  var sv=sumBy(cr,function(r){return recType(r)==='유산소'?0:r.vol}),psv=sumBy(pr,function(r){return recType(r)==='유산소'?0:r.vol});
-  var cd=sumBy(cr,function(r){return recType(r)==='유산소'?r.dist:0}),pcd=sumBy(pr,function(r){return recType(r)==='유산소'?r.dist:0});
-  var cn=Object.keys(C).length,pn=Object.keys(P).length;
-  var h='<h3>이전 '+pd+' ('+wd(pd)+') → 오늘<em>직전 운동일과 비교</em></h3>';
-  h+='<div class="sumcards">'
-    +'<div class="sc"><small>근력 운동량</small><b>'+fmt(sv)+'kg</b><small>이전 '+fmt(psv)+'kg</small><br>'+(delta(sv,psv,'kg')||'&nbsp;')+'</div>'
-    +'<div class="sc"><small>유산소 거리</small><b>'+fmt(cd)+'km</b><small>이전 '+fmt(pcd)+'km</small><br>'+(delta(cd,pcd,'km')||'&nbsp;')+'</div>'
-    +'<div class="sc"><small>운동 종목 수</small><b>'+cn+'개</b><small>이전 '+pn+'개</small><br>'+(delta(cn,pn,'개')||'&nbsp;')+'</div></div>';
-  if(!cr.length)h+='<div class="meta">오늘 입력한 기록이 없어 오늘 값은 0으로 비교됩니다.</div>';
-  names.forEach(function(n){
-    var c=C[n],p=P[n],b=base(n),u=munit(b),cv=c?mval(c):0,pv=p?mval(p):0,mx=Math.max(cv,pv),cls=b.type==='유산소'?'c':'s';
-    var badge=!c?'<span class="dl same">오늘 미실시</span>':!p?'<span class="dl new">오늘 신규</span>':delta(cv,pv,u);
-    h+='<div class="brow"><div class="top"><span class="bn">'+esc(n)+'<small>'+esc(b.part)+'</small></span>'+badge+'</div>';
-    if(p)h+=barLine('이전 '+md(pd),pv,mx,u,'g');
-    if(c)h+=barLine('오늘',cv,mx,u,cls);
-    h+=todayDetail(c||p,c?p:null)+'</div>';
   });
   return h;
 }
