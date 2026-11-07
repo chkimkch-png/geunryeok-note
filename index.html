@@ -37,7 +37,17 @@ button{font-size:17px;border:0;border-radius:12px;padding:14px;width:100%;margin
 .ghost{background:#e9ecf3;color:var(--navy)}
 .danger{background:#fde8e8;color:#b42318}
 .small{width:auto;padding:8px 12px;font-size:14px;margin:0}
-.lrow{display:flex;justify-content:space-between;align-items:flex-end}.lrow label{margin-bottom:0}
+.selbtn{display:flex;justify-content:space-between;align-items:center;margin:0;padding:13px 12px;font-size:17px;font-weight:400;text-align:left;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--text);min-height:50px}
+.selbtn:focus{outline:2px solid var(--orange);border-color:var(--orange)}
+.selbtn i{font-style:normal;color:var(--sub);margin-left:8px}
+.pk{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+.pk[hidden]{display:none}
+.pkb{background:#fff;width:100%;max-width:560px;max-height:75vh;border-radius:18px 18px 0 0;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px)}
+.pkh{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);font-weight:700;color:var(--navy);font-size:16px}
+.pkh .pkx{margin-left:auto}
+.pkl{overflow-y:auto;-webkit-overflow-scrolling:touch}
+.pkl button{display:block;width:100%;margin:0;border-radius:0;background:#fff;color:var(--text);text-align:left;font-weight:500;padding:16px;border-bottom:1px solid var(--line);border-left:5px solid transparent}
+.pkl button.on{background:#fff4e6;border-left-color:var(--orange);color:var(--navy);font-weight:700}
 nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:env(safe-area-inset-bottom)}
 nav button{margin:0;border-radius:0;background:#fff;color:var(--sub);padding:14px 4px;font-size:15px}
 nav button.on{color:var(--orange);border-top:3px solid var(--orange);padding-top:11px}
@@ -131,18 +141,11 @@ td b{color:var(--orange)}
 <section class="tab active" id="tab-in">
   <label for="date">날짜</label>
   <input type="date" id="date">
-  <div class="lrow"><label for="ex">운동 종목</label><button type="button" class="ghost small ordbtn"></button></div>
-  <select id="ex"></select>
+  <label for="exBtn">운동 종목</label>
+  <button type="button" id="exBtn" class="selbtn" aria-haspopup="dialog"><span id="exBtnTxt"></span><i>▾</i></button>
+  <select id="ex" hidden></select>
   <div class="meta" id="meta"></div>
   <button class="ghost" id="btnLast">지난번 기록 불러오기</button>
-  <button class="ghost" id="btnNewEx" type="button">＋ 새 종목 추가</button>
-  <div id="newExBox" hidden>
-    <label for="xn">새 종목 이름</label><input id="xn" type="text" placeholder="예: 데드리프트">
-    <label for="xp">부위 (목록에서 고르거나 직접 입력)</label><input id="xp" type="text" list="partList" placeholder="예: 등 (유산소는 '유산소')">
-    <label for="xt">유형</label>
-    <select id="xt"><option>근력</option><option>유산소</option></select>
-    <button class="primary" id="btnAddEx2" type="button">종목 추가</button>
-  </div>
   <datalist id="partList"></datalist>
 
   <div id="strength">
@@ -239,6 +242,12 @@ td b{color:var(--orange)}
     <button class="ghost" id="ivClose" type="button">닫기</button>
   </div>
 </div>
+<div id="exPick" class="pk" hidden>
+  <div class="pkb" role="dialog" aria-label="운동 종목 선택">
+    <div class="pkh"><span>정렬</span><button type="button" class="ghost small ordbtn"></button><button type="button" class="ghost small pkx" id="pkClose">닫기</button></div>
+    <div class="pkl" id="pkList"></div>
+  </div>
+</div>
 <div id="toast"></div>
 
 <script>
@@ -258,7 +267,7 @@ function fmt(n){return (Math.round(n*100)/100).toLocaleString('ko-KR')}
 function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function newId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function calc(reps,w,base){var sets=0,vol=0;for(var i=0;i<5;i++){if(reps[i]>0){sets++;vol+=reps[i]*(w[i]>0?w[i]:base)}}return{sets:sets,vol:vol}}
-function findEx(n){for(var i=0;i<state.ex.length;i++)if(state.ex[i].n===n)return state.ex[i];return null}
+function findEx(n){if(!n)return null;for(var i=0;i<state.ex.length;i++)if(state.ex[i].n===n)return state.ex[i];return null}
 
 /* 세트 입력칸 만들기 */
 var setsBox=$('sets');
@@ -270,11 +279,24 @@ for(var i=0;i<5;i++){
 
 function renderEx(keep){
   var sel=$('ex'),cur=keep||sel.value;sel.innerHTML='';
-  state.ex.slice().sort(function(a,b){return exCmp(a.n,b.n)}).forEach(function(e){var o=document.createElement('option');o.value=e.n;o.textContent=e.n;sel.appendChild(o)});
+  state.ex.filter(function(e){return e.n}).sort(function(a,b){return exCmp(a.n,b.n)}).forEach(function(e){var o=document.createElement('option');o.value=e.n;o.textContent=e.n;sel.appendChild(o)});
   if(cur&&findEx(cur))sel.value=cur;
   onEx();
+  if(!$('exPick').hidden)renderPick();
 }
+function updateExBtn(){var v=$('ex').value;$('exBtnTxt').textContent=v||'종목을 선택하세요'}
+function renderPick(){
+  var sel=$('ex'),box=$('pkList');box.innerHTML='';
+  for(var i=0;i<sel.options.length;i++){(function(o){
+    var b=document.createElement('button');b.type='button';b.textContent=o.value;if(o.value===sel.value)b.className='on';
+    b.onclick=function(){sel.value=o.value;onEx();closePick()};
+    box.appendChild(b);
+  })(sel.options[i])}
+}
+function openPick(){renderPick();$('exPick').hidden=false;var on=$('pkList').querySelector('.on');if(on&&on.scrollIntoView)on.scrollIntoView({block:'center'})}
+function closePick(){$('exPick').hidden=true}
 function onEx(){
+  updateExBtn();
   var e=findEx($('ex').value);
   if(!e){$('meta').textContent='종목을 설정 탭에서 추가하세요';return}
   $('meta').textContent='부위: '+e.p+' · 유형: '+e.t;
@@ -355,7 +377,7 @@ function recScore(r){return recType(r)==='유산소'?r.dist:r.vol}
 function koCmp(a,b){return String(a).localeCompare(String(b),'ko')}
 function exCmp(a,b){var c=koCmp(a,b);return view.exo==='desc'?-c:c}
 function pkey(p){return String(p||'').replace(/\s+/g,'')}
-function ordLabel(){var t=view.exo==='desc'?'가나다 ▼ 내림차순':'가나다 ▲ 오름차순';document.querySelectorAll('.ordbtn').forEach(function(b){b.textContent=t})}
+function ordLabel(){var t=view.exo==='desc'?'▼ 내림차순':'▲ 오름차순';document.querySelectorAll('.ordbtn').forEach(function(b){b.textContent=t})}
 function refreshParts(){var d=$('partList');if(!d)return;d.innerHTML='';var seen={};state.ex.forEach(function(e){var k=pkey(e.p);if(k&&!seen[k]){seen[k]=1;var o=document.createElement('option');o.value=e.p;d.appendChild(o)}})}
 function cmpNew(a,b){return a.date<b.date?1:a.date>b.date?-1:b.ts-a.ts}
 function cmpOld(a,b){return a.date<b.date?-1:a.date>b.date?1:a.ts-b.ts}
@@ -483,7 +505,7 @@ function renderSet(){
   var b=$('exlist');b.innerHTML='';
   state.ex.map(function(e,i){return{e:e,i:i}}).sort(function(a,b){return exCmp(a.e.n,b.e.n)}).forEach(function(it){
     var e=it.e,i=it.i;
-    var r=el('div','row');r.appendChild(el('span',null,e.n+' · '+e.p+' · '+e.t));
+    var r=el('div','row');r.appendChild(el('span',null,(e.n||'(이름 없음)')+' · '+(e.p||'-')+' · '+e.t));
     var d=el('button','danger small','삭제');d.onclick=function(){if(confirm(e.n+' 종목을 목록에서 삭제할까요? (기록은 유지됩니다)')){state.ex.splice(i,1);save();renderSet();renderEx()}};
     r.appendChild(d);b.appendChild(r);
   });
@@ -711,8 +733,9 @@ function addEx(n,p,t,after){
   return true;
 }
 $('btnAddEx').onclick=function(){addEx($('nn').value,$('np').value,$('nt').value,function(){$('nn').value='';$('np').value=''})};
-$('btnNewEx').onclick=function(){var b=$('newExBox');b.hidden=!b.hidden;if(!b.hidden)$('xn').focus()};
-$('btnAddEx2').onclick=function(){addEx($('xn').value,$('xp').value,$('xt').value,function(){$('xn').value='';$('xp').value='';$('newExBox').hidden=true})};
+$('exBtn').onclick=openPick;
+$('pkClose').onclick=closePick;
+$('exPick').onclick=function(e){if(e.target===this)closePick()};
 document.querySelectorAll('.ordbtn').forEach(function(b){b.onclick=function(){view.exo=view.exo==='desc'?'asc':'desc';saveView();ordLabel();renderEx();renderSet();renderList()}});
 $('btnUrl').onclick=function(){var u=$('url').value.trim();if(u&&!/^https:\/\/script\.google\.com\//.test(u)){toast('script.google.com 주소가 아닙니다');return}state.url=u;save();renderSet();renderList();toast(u?'주소를 저장했습니다':'전송을 해제했습니다')};
 $('btnResend').onclick=function(){if(!state.url){toast('먼저 주소를 저장하세요');return}send(state.rec.slice(),false)};
