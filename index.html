@@ -67,9 +67,10 @@ td b{color:var(--orange)}
 .row{display:flex;gap:8px;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:6px}
 .note{font-size:13px;color:var(--sub);line-height:1.5;margin-top:6px}
 
-#ibar{display:grid;grid-template-columns:auto 1fr auto;gap:8px;padding:8px 12px;background:#fff;border-bottom:1px solid var(--line);align-items:stretch}
-#ibar button{margin:0;padding:0 12px;min-height:52px;font-size:15px;border-radius:10px;width:auto;white-space:nowrap}
-.iv-run{min-width:76px}
+#ibar{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:6px;padding:8px 10px;background:#fff;border-bottom:1px solid var(--line);align-items:stretch}
+#ibar button{margin:0;padding:0 9px;min-height:52px;font-size:14px;border-radius:10px;width:auto;white-space:nowrap}
+.iv-run{min-width:68px}
+.iv-save{min-width:48px;background:var(--navy);color:#fff}
 .iv-btn{background:#e9ecf3;color:var(--navy)}
 .iv-run{background:var(--orange);color:#fff}
 .iv-run.on{background:#b42318}
@@ -134,6 +135,7 @@ td b{color:var(--orange)}
   <button id="btnIv" class="iv-btn" type="button">⏱ 반복시간</button>
   <div id="ibox" class="ibox" aria-live="off"><div class="ic"><b id="ival">1분</b><small id="istate">대기 중</small></div><div class="ic ie"><small>누적</small><b id="iacc">0:00</b></div></div>
   <button id="btnRun" class="iv-run" type="button" aria-pressed="false">▶ 시작</button>
+  <button id="btnSaveT" class="iv-save" type="button">저장</button>
 </div>
 </div>
 <main>
@@ -255,10 +257,10 @@ td b{color:var(--orange)}
 'use strict';
 var KEY='geunryeok_note_v1';
 var DEF=[{n:'벤치프레스',p:'가슴',t:'근력'},{n:'랫풀다운',p:'등',t:'근력'},{n:'스쿼트',p:'하체',t:'근력'},{n:'숄더프레스',p:'어깨',t:'근력'},{n:'빨리걷기',p:'유산소',t:'유산소'},{n:'러닝',p:'유산소',t:'유산소'}];
-var state={ex:DEF,rec:[],url:''};
+var state={ex:DEF,rec:[],tm:[],url:''};
 var $=function(i){return document.getElementById(i)};
 
-function load(){try{var s=localStorage.getItem(KEY);if(s){var o=JSON.parse(s);if(o.ex)state.ex=o.ex;if(o.rec)state.rec=o.rec;if(o.url)state.url=o.url;}}catch(e){}}
+function load(){try{var s=localStorage.getItem(KEY);if(s){var o=JSON.parse(s);if(o.ex)state.ex=o.ex;if(o.rec)state.rec=o.rec;if(o.tm)state.tm=o.tm;if(o.url)state.url=o.url;}}catch(e){}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state));return true}catch(e){toast('저장 공간을 쓸 수 없습니다. CSV로 백업하세요');return false}}
 function toast(m){var t=$('toast');t.textContent=m;t.className='show';clearTimeout(toast.h);toast.h=setTimeout(function(){t.className=''},2200)}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
@@ -336,6 +338,7 @@ function fillLast(){
 }
 
 function sheetRow(r){
+  if(r.tm){var tr=[r.id,r.date,'운동시간','운동시간',''];for(var q=0;q<10;q++)tr.push('');tr.push('',Math.round(r.sec/60*100)/100,'누적시간 '+clockLong(r.sec),0,0);return tr}
   var row=[r.id,r.date,r.part,r.ex,r.base];
   for(var i=0;i<5;i++)row.push(r.reps[i]||'');
   for(i=0;i<5;i++)row.push(r.w[i]||'');
@@ -439,9 +442,9 @@ function renderList(){
   var box=$('list');box.innerHTML='';
   $('sub').textContent=state.rec.length+'건 기록';
   buildFilter();
-  if(!state.rec.length){box.appendChild(el('p','empty','아직 기록이 없습니다.'));return}
-  var arr=state.rec.filter(matchView);
-  if(!arr.length){box.appendChild(el('p','empty','선택한 종목의 기록이 없습니다.'));return}
+  if(!state.rec.length&&!state.tm.length){box.appendChild(el('p','empty','아직 기록이 없습니다.'));return}
+  var arr=state.rec.filter(matchView),tms=view.ex==='all'?state.tm.slice():[];
+  if(!arr.length&&!tms.length){box.appendChild(el('p','empty','선택한 종목의 기록이 없습니다.'));return}
   var cmp=cmpNew;
   if(view.sort==='old')cmp=cmpOld;
   else if(view.sort==='name')cmp=function(a,b){return koCmp(a.ex,b.ex)||cmpNew(a,b)};
@@ -450,26 +453,35 @@ function renderList(){
     return ta-tb||recScore(b)-recScore(a)||cmpNew(a,b);
   };
   arr.sort(cmp);
-  box.appendChild(el('div','meta',arr.length+'건 표시'+(view.ex!=='all'?' (전체 '+state.rec.length+'건 중)':'')+(view.sort==='amt'?' · 근력은 운동량(kg), 유산소는 거리(km) 기준':'')));
+  box.appendChild(el('div','meta',arr.length+'건 표시'+(tms.length?' · 운동시간 '+tms.length+'건':'')+(view.ex!=='all'?' (전체 '+state.rec.length+'건 중)':'')+(view.sort==='amt'?' · 근력은 운동량(kg), 유산소는 거리(km) 기준':'')));
   if(view.sort==='new'||view.sort==='old'){
-    var groups={},order=[];
+    var groups={},tg={},order=[];
     arr.forEach(function(r){if(!groups[r.date]){groups[r.date]=[];order.push(r.date)}groups[r.date].push(r)});
+    tms.forEach(function(t){if(!groups[t.date]&&!tg[t.date])order.push(t.date);(tg[t.date]||(tg[t.date]=[])).push(t)});
+    order.sort(function(a,b){var c=a<b?-1:a>b?1:0;return view.sort==='old'?c:-c});
     order.forEach(function(d){
-      var vol=0,dist=0;groups[d].forEach(function(r){vol+=r.vol;dist+=r.dist});
+      var g=groups[d]||[],vol=0,dist=0;g.forEach(function(r){vol+=r.vol;dist+=r.dist});
+      var tsum=tg[d]?tmSum(tg[d]):0;
       var h=el('h3',null,d+' ('+wd(d)+')');
-      h.appendChild(el('em',null,(vol?'운동량 '+fmt(vol)+'kg ':'')+(dist?'거리 '+fmt(dist)+'km':'')));
+      h.appendChild(el('em',null,(vol?'운동량 '+fmt(vol)+'kg ':'')+(dist?'거리 '+fmt(dist)+'km ':'')+(tsum?'운동시간 '+tmKo(tsum):'')));
       box.appendChild(h);
-      groups[d].forEach(function(r){box.appendChild(recCard(r,false))});
+      g.forEach(function(r){box.appendChild(recCard(r,false))});
+      (tg[d]||[]).forEach(function(t){box.appendChild(tmCard(t,false))});
     });
   }else{
     arr.forEach(function(r){box.appendChild(recCard(r,true))});
+    if(tms.length){
+      tms.sort(function(a,b){return a.date<b.date?1:a.date>b.date?-1:b.ts-a.ts});
+      var h2=el('h3',null,'운동 시간');h2.appendChild(el('em',null,'합계 '+tmKo(tmSum(tms))));box.appendChild(h2);
+      tms.forEach(function(t){box.appendChild(tmCard(t,true))});
+    }
   }
 }
 
 function renderSum(){
   var box=$('sum');
   $('sSort').value=view.sum;
-  if(!state.rec.length){box.innerHTML='<p class="empty">기록이 쌓이면 누적이 표시됩니다.</p>';return}
+  if(!state.rec.length&&!state.tm.length){box.innerHTML='<p class="empty">기록이 쌓이면 누적이 표시됩니다.</p>';return}
   var m={};
   state.rec.forEach(function(r){
     var o=m[r.ex]||(m[r.ex]={days:{},cnt:0,vol:0,dist:0,min:0,max:0,last:'',type:recType(r),part:r.part});
@@ -498,6 +510,12 @@ function renderSum(){
     ca.forEach(function(n){var o=m[n];td+=o.dist;h+='<tr><td>'+esc(n)+'</td><td>'+Object.keys(o.days).length+'('+o.cnt+')</td><td>'+fmt(o.min)+'</td><td><b>'+fmt(o.dist)+'</b></td></tr>'});
     h+='<tr><td><b>합계</b></td><td></td><td></td><td><b>'+fmt(td)+'</b></td></tr></table>';
   }
+  if(state.tm.length){
+    var td2={};state.tm.forEach(function(t){td2[t.date]=1});
+    var tt=tmSum(state.tm);
+    h+='<h3>운동 시간</h3><table><tr><th>저장 횟수</th><th>저장한 날</th><th>누적 운동시간</th></tr>'
+      +'<tr><td>'+state.tm.length+'회</td><td>'+Object.keys(td2).length+'일</td><td><b>'+tmKo(tt)+'</b></td></tr></table>';
+  }
   box.innerHTML=h;
 }
 
@@ -520,7 +538,7 @@ var HEAD=['기록ID','날짜','운동부위','운동종류','기본무게','횟�
 function csvCell(v){v=String(v);return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
 function exportCsv(){
   var lines=[HEAD.join(',')];
-  state.rec.slice().sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:a.ts-b.ts}).forEach(function(r){lines.push(sheetRow(r).map(csvCell).join(','))});
+  state.rec.concat(state.tm).sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:a.ts-b.ts}).forEach(function(r){lines.push(sheetRow(r).map(csvCell).join(','))});
   var blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='근력노트_'+today()+'.csv';document.body.appendChild(a);a.click();a.remove();
   toast('CSV 파일을 내려받았습니다');
@@ -529,10 +547,11 @@ function parseCSV(t){var rows=[],row=[],f='',q=false;for(var i=0;i<t.length;i++)
 function normDate(s){s=String(s).trim();if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;var d=new Date(s);if(isNaN(d))return null;return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function importCsv(text){
   var rows=parseCSV(text.replace(/^\ufeff/,'')),have={},added=0,skip=0;
-  state.rec.forEach(function(r){have[r.id]=1});
+  state.rec.forEach(function(r){have[r.id]=1});state.tm.forEach(function(r){have[r.id]=1});
   for(var k=1;k<rows.length;k++){
     var c=rows[k];if(c.length<4||!c[0])continue;
     var d=normDate(c[1]);if(!d||have[c[0]]){skip++;continue}
+    if(c[2]==='운동시간'&&c[3]==='운동시간'){state.tm.push({id:c[0],ts:Date.now()+k,date:d,sec:Math.round(num(c[16])*60),tm:true,sent:true});have[c[0]]=1;added++;continue}
     var reps=[],w=[];for(var i=0;i<5;i++){reps.push(num(c[5+i]));w.push(num(c[10+i]))}
     var base=num(c[4]),cc=calc(reps,w,base),dist=num(c[15]);
     var type=(c[2]==='유산소'||(cc.sets===0&&dist>0))?'유산소':'근력';
@@ -630,7 +649,10 @@ function sortToday(A){
 function renderToday(){
   var t=today(),recs=state.rec.filter(function(r){return r.date===t});
   var h='<h3>오늘 '+t+' ('+wd(t)+')<em>오늘 수행한 운동</em></h3>';
-  if(!recs.length)return h+'<p class="empty">오늘 입력한 기록이 없습니다.</p>';
+  var tt=state.tm.filter(function(x){return x.date===t});
+  if(!recs.length&&!tt.length)return h+'<p class="empty">오늘 입력한 기록이 없습니다.</p>';
+  if(tt.length)h+='<div class="brow"><div class="top"><span class="bn">⏱ 운동 시간<small>저장 '+tt.length+'회</small></span><span><b>'+tmKo(tmSum(tt))+'</b></span></div></div>';
+  if(!recs.length)return h;
   var A=aggregate(recs),names=sortToday(A),mx={'근력':0,'유산소':0};
   names.forEach(function(n){var k=A[n].type==='유산소'?'유산소':'근력';mx[k]=Math.max(mx[k],mval(A[n]))});
   names.forEach(function(n){
@@ -645,7 +667,14 @@ function renderToday(){
 function renderPrev(){
   var t=today(),recs=state.rec.filter(function(r){return r.date===t});
   var h='<h3>이전 기록과 비교<em>오늘 수행한 종목만</em></h3>';
-  if(!recs.length)return h+'<p class="empty">오늘 입력한 기록이 없습니다.<br>운동을 저장하면 각 종목의 직전 기록과 비교해 보여 드립니다.</p>';
+  var tt=state.tm.filter(function(x){return x.date===t}),tsec=tmSum(tt);
+  if(!recs.length&&!tsec)return h+'<p class="empty">오늘 입력한 기록이 없습니다.<br>운동을 저장하면 각 종목의 직전 기록과 비교해 보여 드립니다.</p>';
+  if(tsec){
+    var pdt='';state.tm.forEach(function(x){if(x.date<t&&x.date>pdt)pdt=x.date});
+    var psec=pdt?tmSum(state.tm.filter(function(x){return x.date===pdt})):0;
+    h+='<div class="brow"><div class="top"><span class="bn">⏱ 운동 시간</span>'+tmDelta(tsec,psec)+'</div><div class="meta">오늘 '+tmKo(tsec)+(pdt?' · 이전 '+md(pdt)+' '+tmKo(psec):'')+'</div></div>';
+  }
+  if(!recs.length)return h;
   var A=aggregate(recs),names=sortToday(A),PV={},sv=0,psv=0,cd=0,pcd=0,hasPrev=0;
   names.forEach(function(n){
     var p=prevOf(n,t);PV[n]=p;if(!p)return;
@@ -712,11 +741,16 @@ function renderPeriod(mode){
   var cd=sumBy(recs,function(r){return recType(r)==='유산소'?r.dist:0}),pcd=sumBy(precs,function(r){return recType(r)==='유산소'?r.dist:0});
   var dn=uniqDays(recs),pdn=uniqDays(precs);
   var h='<div class="pnav"><button type="button" data-n="-1" aria-label="이전 기간">◀</button><b>'+R.label+'</b><button type="button" data-n="1" aria-label="다음 기간"'+(chk.off>=0?' disabled':'')+'>▶</button></div>';
-  if(!recs.length)return h+'<p class="empty">이 기간에 기록이 없습니다.</p>';
+  var tms=state.tm.filter(function(x){return x.date>=R.a&&x.date<=R.b}),ptms=state.tm.filter(function(x){return x.date>=Pv.a&&x.date<=Pv.b});
+  var tsec=tmSum(tms),ptsec=tmSum(ptms);
+  if(!recs.length&&!tms.length)return h+'<p class="empty">이 기간에 기록이 없습니다.</p>';
+  var timeCard=tms.length||ptms.length?'<div class="sumcards" style="grid-template-columns:1fr"><div class="sc"><small>운동 시간 (저장한 누적시간)</small><b>'+tmKo(tsec)+'</b>'+(tmDelta(tsec,ptsec)||'&nbsp;')+'</div></div>':'';
+  if(!recs.length)return h+timeCard+'<div class="meta">'+note+'</div>';
   h+='<div class="sumcards">'
     +'<div class="sc"><small>근력 운동량</small><b>'+fmt(sv)+'kg</b>'+(delta(sv,psv,'kg')||'&nbsp;')+'</div>'
     +'<div class="sc"><small>유산소 거리</small><b>'+fmt(cd)+'km</b>'+(delta(cd,pcd,'km')||'&nbsp;')+'</div>'
     +'<div class="sc"><small>운동한 날</small><b>'+dn+'일</b>'+(delta(dn,pdn,'일')||'&nbsp;')+'</div></div>';
+  h+=timeCard;
   h+='<div class="meta">'+note+'</div>';
   h+=typeBars(A,P,'근력')+typeBars(A,P,'유산소')+timeline(mode,R,recs,'근력')+timeline(mode,R,recs,'유산소');
   return h;
@@ -769,11 +803,11 @@ $('pkClose').onclick=closePick;
 $('exPick').onclick=function(e){if(e.target===this)closePick()};
 document.querySelectorAll('.ordbtn').forEach(function(b){b.onclick=function(){view.exo=view.exo==='desc'?'asc':'desc';saveView();ordLabel();renderEx();renderSet();renderList()}});
 $('btnUrl').onclick=function(){var u=$('url').value.trim();if(u&&!/^https:\/\/script\.google\.com\//.test(u)){toast('script.google.com 주소가 아닙니다');return}state.url=u;save();renderSet();renderList();toast(u?'주소를 저장했습니다':'전송을 해제했습니다')};
-$('btnResend').onclick=function(){if(!state.url){toast('먼저 주소를 저장하세요');return}send(state.rec.slice(),false)};
+$('btnResend').onclick=function(){if(!state.url){toast('먼저 주소를 저장하세요');return}send(state.rec.concat(state.tm),false)};
 $('btnCsv').onclick=exportCsv;
 $('btnImp').onclick=function(){$('file').click()};
 $('file').onchange=function(){var f=this.files[0];if(!f)return;var rd=new FileReader();rd.onload=function(){importCsv(String(rd.result))};rd.readAsText(f,'utf-8');this.value=''};
-$('btnClear').onclick=function(){if(confirm('모든 기록을 삭제합니다. 되돌릴 수 없습니다.')&&confirm('정말 삭제할까요? (CSV 백업을 먼저 권장)')){state.rec=[];save();renderList();renderSum();renderSet();toast('삭제했습니다')}};
+$('btnClear').onclick=function(){if(confirm('모든 기록을 삭제합니다. 되돌릴 수 없습니다.')&&confirm('정말 삭제할까요? (CSV 백업을 먼저 권장)')){state.rec=[];state.tm=[];save();renderList();renderSum();renderSet();renderChk();toast('삭제했습니다')}};
 
 
 /* ===== 오늘 날짜·요일 ===== */
@@ -781,6 +815,26 @@ function pad2(n){return String(n).padStart(2,'0')}
 function refreshToday(){
   var d=new Date();
   $('today').textContent=d.getFullYear()+'.'+pad2(d.getMonth()+1)+'.'+pad2(d.getDate())+' ('+['일','월','화','수','목','금','토'][d.getDay()]+')';
+}
+
+/* ===== 운동시간(누적) 도우미 ===== */
+function tmKo(sec){sec=Math.round(sec);var h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),x=sec%60;if(h)return h+'시간 '+m+'분';if(m)return m+'분'+(x?' '+x+'초':'');return x+'초'}
+function tmSum(a){var n=0;a.forEach(function(t){n+=t.sec});return n}
+function tmDelta(cur,prev){
+  if(!(prev>0))return cur>0?'<span class="dl new">첫 기록</span>':'';
+  var d=cur-prev;if(d===0)return '<span class="dl same">＝ 동일</span>';
+  var r=Math.round(d/prev*100),amt=' ('+(d>0?'+':'-')+tmKo(Math.abs(d))+')';
+  return d>0?'<span class="dl up">▲ +'+r+'%'+amt+'</span>':'<span class="dl down">▼ '+r+'%'+amt+'</span>';
+}
+function tmCard(t,showDate){
+  var c=el('div','card'),tt=el('div','t','⏱ 운동시간');
+  tt.appendChild(el('small',null,(showDate?t.date+' ('+wd(t.date)+') · ':'')+'운동시간'+(state.url?(t.sent?' · 전송요청됨':' · 미전송'):'')));
+  c.appendChild(tt);
+  c.appendChild(el('div','d',clockLong(t.sec)+' ('+tmKo(t.sec)+')'));
+  var b=el('button','danger small del','삭제');
+  b.onclick=function(){if(confirm('이 운동시간 기록을 삭제할까요?\n(구글 시트에 이미 전송된 행은 시트에서 직접 지워야 합니다)')){state.tm=state.tm.filter(function(x){return x.id!==t.id});save();renderList();renderSum();renderChk()}};
+  c.appendChild(b);
+  return c;
 }
 
 /* ===== Interval 타이머 ===== */
@@ -903,6 +957,19 @@ $('ivOk').onclick=function(){
   setIv(total);closeSheet();
 };
 $('btnRun').onclick=function(){running?stopIv():startIv()};
+function saveTime(){
+  if(running)stopIv();   // 실행 중이면 먼저 멈추고 그 시점의 누적시간을 저장
+  var sec=Math.floor(lastElapsed/1000);
+  if(sec<1){toast('저장할 누적시간이 없습니다');return}
+  var t={id:newId(),ts:Date.now(),date:today(),sec:sec,tm:true,sent:false};
+  state.tm.push(t);
+  if(!save()){state.tm.pop();return}
+  lastElapsed=0;renderIv();
+  toast('운동시간 '+clockLong(sec)+' 저장했습니다');
+  renderList();renderSum();renderChk();
+  send([t],true);
+}
+$('btnSaveT').onclick=saveTime;
 document.addEventListener('visibilitychange',function(){
   if(!document.hidden){refreshToday();if(running){lockScreen();tick()}}
 });
