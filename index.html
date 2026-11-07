@@ -590,12 +590,13 @@ function mval(o){return o.type==='유산소'?o.dist:o.vol}
 function munit(o){return o.type==='유산소'?'km':'kg'}
 function speedOf(o){return o&&o.mm>0&&o.dm>0?Math.round(o.dm/(o.mm/60)*10)/10:0}
 function barW(v,mx){return mx>0&&v>0?Math.max(3,v/mx*100):0}
-function delta(cur,prev){
+function delta(cur,prev,u){
   if(!(cur>0)&&!(prev>0))return '';
   if(!(prev>0))return '<span class="dl new">신규</span>';
-  var r=Math.round((cur-prev)/prev*100);
-  if(r===0)return '<span class="dl same">＝ 동일</span>';
-  return r>0?'<span class="dl up">▲ +'+r+'%</span>':'<span class="dl down">▼ '+r+'%</span>';
+  var d=cur-prev,r=Math.round(d/prev*100),ds=Math.round(d*100)/100;
+  if(ds===0)return '<span class="dl same">＝ 동일</span>';
+  var amt=u!==undefined?' ('+(ds>0?'+':'-')+fmt(Math.abs(ds))+u+')':'';
+  return ds>0?'<span class="dl up">▲ +'+r+'%'+amt+'</span>':'<span class="dl down">▼ '+r+'%'+amt+'</span>';
 }
 function prevOf(name,date){
   var best='';
@@ -630,7 +631,7 @@ function renderToday(){
   names.sort(function(a,b){var ta=A[a].type==='유산소'?1:0,tb=A[b].type==='유산소'?1:0;return ta-tb||mval(A[b])-mval(A[a])||koCmp(a,b)});
   names.forEach(function(n){
     var c=A[n],p=prevOf(n,t),u=munit(c),cv=mval(c),pv=p?mval(p):0,mx=Math.max(cv,pv),cls=c.type==='유산소'?'c':'s';
-    h+='<div class="brow"><div class="top"><span class="bn">'+esc(n)+'<small>'+esc(c.part)+'</small></span>'+(p?delta(cv,pv):'<span class="dl new">첫 기록</span>')+'</div>';
+    h+='<div class="brow"><div class="top"><span class="bn">'+esc(n)+'<small>'+esc(c.part)+'</small></span>'+(p?delta(cv,pv,u):'<span class="dl new">첫 기록</span>')+'</div>';
     if(p)h+=barLine('이전 '+md(p.date),pv,mx,u,'g');
     h+=barLine('오늘',cv,mx,u,cls);
     h+=todayDetail(c,p)+'</div>';
@@ -650,7 +651,7 @@ function typeBars(A,P,type){
     var o=A[n],v=mval(o),u=munit(o),pv=P[n]?mval(P[n]):0,dayN=Object.keys(o.days).length,sub;
     if(type==='유산소'){var sp=speedOf(o);sub='시간 '+fmt(o.min)+'분'+(sp>0?' · 평균 '+sp+'km/h':'')+' · 운동 '+dayN+'일'}
     else sub='세트 '+o.sets+' · 총 '+o.reps+'회 · 최고 '+fmt(o.maxW)+'kg · 운동 '+dayN+'일';
-    h+='<div class="brow"><div class="top"><span class="bn">'+esc(n)+'<small>'+esc(o.part)+'</small></span><span><b>'+fmt(v)+u+'</b> '+delta(v,pv)+'</span></div>'
+    h+='<div class="brow"><div class="top"><span class="bn">'+esc(n)+'<small>'+esc(o.part)+'</small></span><span><b>'+fmt(v)+u+'</b> '+delta(v,pv,u)+'</span></div>'
       +'<div class="btrack"><div class="bfill '+cls+'" style="width:'+barW(v,mx).toFixed(1)+'%"></div></div><div class="bsub">'+sub+'</div></div>';
   });
   return h;
@@ -683,9 +684,9 @@ function renderPeriod(mode){
   var h='<div class="pnav"><button type="button" data-n="-1" aria-label="이전 기간">◀</button><b>'+R.label+'</b><button type="button" data-n="1" aria-label="다음 기간"'+(chk.off>=0?' disabled':'')+'>▶</button></div>';
   if(!recs.length)return h+'<p class="empty">이 기간에 기록이 없습니다.</p>';
   h+='<div class="sumcards">'
-    +'<div class="sc"><small>근력 운동량</small><b>'+fmt(sv)+'kg</b>'+(delta(sv,psv)||'&nbsp;')+'</div>'
-    +'<div class="sc"><small>유산소 거리</small><b>'+fmt(cd)+'km</b>'+(delta(cd,pcd)||'&nbsp;')+'</div>'
-    +'<div class="sc"><small>운동한 날</small><b>'+dn+'일</b>'+(delta(dn,pdn)||'&nbsp;')+'</div></div>';
+    +'<div class="sc"><small>근력 운동량</small><b>'+fmt(sv)+'kg</b>'+(delta(sv,psv,'kg')||'&nbsp;')+'</div>'
+    +'<div class="sc"><small>유산소 거리</small><b>'+fmt(cd)+'km</b>'+(delta(cd,pcd,'km')||'&nbsp;')+'</div>'
+    +'<div class="sc"><small>운동한 날</small><b>'+dn+'일</b>'+(delta(dn,pdn,'일')||'&nbsp;')+'</div></div>';
   h+='<div class="meta">'+note+'</div>';
   h+=typeBars(A,P,'근력')+typeBars(A,P,'유산소')+timeline(mode,R,recs,'근력')+timeline(mode,R,recs,'유산소');
   return h;
