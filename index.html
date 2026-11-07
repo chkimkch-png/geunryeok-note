@@ -129,33 +129,33 @@ td b{color:var(--orange)}
 .tlab{font-size:11px;color:var(--sub);margin-top:3px;white-space:nowrap}
 #toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:20px;font-size:15px;opacity:0;transition:.25s;pointer-events:none;z-index:9;max-width:90%}
 #toast.show{opacity:1}
-/* ===== 입력 탭: 스크롤 없이 한 화면 ===== */
-body.fit{padding-bottom:56px}
-body.fit main{padding:4px 10px 0}
-#tab-in.active{--srH:clamp(32px,calc((100vh - 460px) / 5),46px);--srH:clamp(32px,calc((100dvh - 460px) / 5),46px);display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px 8px;align-content:start}
+/* ===== 입력 탭: 스크롤 없이 한 화면 (남는 세로 공간은 세트 입력표가 채움) ===== */
+body.fit{height:100vh;height:100dvh;display:flex;flex-direction:column;padding-bottom:var(--navH,56px)}
+body.fit main{flex:1 1 auto;min-height:0;width:100%;max-width:560px;align-self:center;margin:0;padding:4px 10px 6px;overflow-y:auto}
+#tab-in.active{display:grid;height:100%;grid-template-columns:minmax(0,1fr) 92px;grid-template-rows:auto auto auto minmax(0,1fr) auto auto;gap:6px 8px}
 #strength,#cardio{display:contents}
 #tab-in label{margin:0 0 2px;font-size:12px;line-height:14px}
 #tab-in input{height:38px;padding:0 10px;font-size:16px}
 #tab-in .f{min-width:0}
-#tab-in .g1{grid-column:1/-1;grid-row:1;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}
-#tab-in .g2{grid-column:1/-1;grid-row:2;display:grid;grid-template-columns:minmax(0,1fr) 112px;gap:8px;align-items:end}
-#btnCnt{height:54px;min-width:84px;margin:0;padding:0 14px;font-size:40px;line-height:1}
-#tab-in .lr{display:flex;justify-content:space-between;align-items:baseline;gap:6px;height:16px}
+#tab-in .d1{grid-column:1;grid-row:1;align-self:end}
+#btnCnt{grid-column:2;grid-row:1;height:54px;width:100%;min-width:0;margin:0;padding:0 6px;font-size:40px;line-height:1}
+#tab-in .d2{grid-column:1;grid-row:2;align-self:end}
+#tab-in #btnLast{grid-column:2;grid-row:2/4;height:100%;margin:0;padding:0 4px;font-size:14px;line-height:1.3}
+#tab-in .lr{display:flex;justify-content:space-between;align-items:flex-end;gap:6px;height:18px;margin-bottom:3px}
 #tab-in .lr label{margin:0;flex:none}
-#tab-in .lr .meta{margin:0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+#tab-in .lr .meta{margin:0;font-size:12px;line-height:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 #tab-in .selbtn{height:40px;min-height:40px;padding:0 10px;font-size:16px}
-#tab-in #btnLast{height:40px;margin:0;padding:0 6px;font-size:13px;line-height:1.15}
-#tab-in .base{grid-row:3;grid-column:1/3}
-#tab-in .memo{grid-row:3;grid-column:3/7}
-#tab-in .sets{grid-row:4;grid-column:1/-1;margin:0;padding:6px 8px;display:flex;flex-direction:column;gap:4px}
-#tab-in .sh{margin:0;height:14px;font-size:11px;grid-template-columns:44px 1fr 1fr;gap:6px}
-#tab-in .sr{margin:0;height:var(--srH);grid-template-columns:44px 1fr 1fr;gap:6px}
+#tab-in .base,#tab-in .cg{grid-column:1;grid-row:3;align-self:end}
+#tab-in .cg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#tab-in .sets{grid-column:1/-1;grid-row:4;margin:0;padding:6px 8px;display:flex;flex-direction:column;gap:4px;min-height:0}
+#tab-in .sh{flex:none;margin:0;height:14px;font-size:11px;grid-template-columns:44px 1fr 1fr;gap:6px}
+#tab-in .sr{flex:1 1 0;min-height:30px;max-height:72px;margin:0;grid-template-columns:44px 1fr 1fr;gap:6px}
 #tab-in .sr input{height:100%;padding:0 10px;font-size:16px}
 #tab-in .sr b{font-size:14px}
-#tab-in .dist{grid-row:3;grid-column:1/4}
-#tab-in .min{grid-row:3;grid-column:4/7}
-body.cd #tab-in .memo{grid-row:4;grid-column:1/-1}
-#tab-in .bot{grid-row:5;grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) 108px;gap:8px;align-items:stretch}
+#tab-in .memo{grid-column:1/-1;grid-row:5}
+body.cd #tab-in .memo{grid-row:4;align-self:start}
+#tab-in .bot{grid-column:1/-1;grid-row:6;display:grid;grid-template-columns:minmax(0,1fr) 108px;gap:8px;align-items:stretch}
+body.cd #tab-in .bot{grid-row:5}
 #tab-in #live{margin:0;padding:6px 10px;font-size:13px;line-height:1.25;display:flex;align-items:center}
 #tab-in #btnSave{margin:0;height:46px;padding:0}
 </style>
@@ -173,17 +173,14 @@ body.cd #tab-in .memo{grid-row:4;grid-column:1/-1}
 <main>
 
 <section class="tab active" id="tab-in">
-  <div class="g1">
-    <div class="f"><label for="date">날짜</label><input type="date" id="date"></div>
-    <button type="button" id="btnCnt" aria-label="세트 카운터">0</button>
+  <div class="f d1"><label for="date">날짜</label><input type="date" id="date"></div>
+  <button type="button" id="btnCnt" aria-label="세트 카운터">0</button>
+
+  <div class="f d2">
+    <div class="lr"><label for="exBtn">운동 종목</label><span class="meta" id="meta"></span></div>
+    <button type="button" id="exBtn" class="selbtn" aria-haspopup="dialog"><span id="exBtnTxt"></span><i>▾</i></button>
   </div>
-  <div class="g2">
-    <div class="f">
-      <div class="lr"><label for="exBtn">운동 종목</label><span class="meta" id="meta"></span></div>
-      <button type="button" id="exBtn" class="selbtn" aria-haspopup="dialog"><span id="exBtnTxt"></span><i>▾</i></button>
-    </div>
-    <button class="ghost" id="btnLast">지난번 기록 불러오기</button>
-  </div>
+  <button class="ghost" id="btnLast">지난번 기록<br>불러오기</button>
   <select id="ex" hidden></select>
   <datalist id="partList"></datalist>
 
@@ -195,8 +192,10 @@ body.cd #tab-in .memo{grid-row:4;grid-column:1/-1}
   </div>
 
   <div id="cardio" hidden>
-    <div class="f dist"><label for="dist">거리 (km)</label><input id="dist" type="number" inputmode="decimal" step="0.01" min="0" placeholder="예: 5.2"></div>
-    <div class="f min"><label for="min">시간 (분, 선택)</label><input id="min" type="number" inputmode="decimal" step="1" min="0" placeholder="예: 40"></div>
+    <div class="cg">
+      <div class="f"><label for="dist">거리 (km)</label><input id="dist" type="number" inputmode="decimal" step="0.01" min="0" placeholder="예: 5.2"></div>
+      <div class="f"><label for="min">시간 (분, 선택)</label><input id="min" type="number" inputmode="decimal" step="1" min="0" placeholder="예: 40"></div>
+    </div>
   </div>
 
   <div class="f memo"><label for="memo">비고</label><input id="memo" type="text" placeholder="컨디션, 메모 등"></div>
@@ -1012,6 +1011,8 @@ function setCnt(n){cnt=n;try{localStorage.setItem(CNTKEY,String(cnt))}catch(e){}
   });
   b.addEventListener('contextmenu',function(e){e.preventDefault()});
 })();
+function setNavH(){var n=document.querySelector('nav');if(n)document.documentElement.style.setProperty('--navH',n.offsetHeight+'px')}
+setNavH();window.addEventListener('resize',setNavH);window.addEventListener('orientationchange',setNavH);
 load();loadView();ordLabel();refreshParts();renderCnt();
 $('date').value=today();
 renderEx();renderList();renderSum();renderSet();
