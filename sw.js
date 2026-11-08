@@ -1,5 +1,5 @@
 /* 근력노트 서비스 워커: 앱 파일을 저장해 두고 오프라인에서도 열리게 함 */
-var CACHE = 'geunryeok-note-v17';
+var CACHE = 'geunryeok-note-v18';
 var FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 
 self.addEventListener('install', function (e) {
