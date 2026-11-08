@@ -163,6 +163,9 @@ body.cd #tab-in .bot{grid-row:5}
 .stk{position:sticky;top:var(--topH,120px);z-index:4;background:var(--bg);margin:0 -14px;padding:4px 14px 4px;box-shadow:0 3px 4px -3px rgba(0,0,0,.18)}
 #tab-set>h3:first-child{position:sticky;top:var(--topH,120px);z-index:4;background:var(--bg);margin:0 -14px;padding:8px 14px 6px;box-shadow:0 3px 4px -3px rgba(0,0,0,.18);align-items:center}
 #tab-list .fbar,#tab-sum .fbar{margin-bottom:0}
+#tab-list .fbar{grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr) auto}
+#tab-list .fbar select{padding:11px 6px;font-size:14px}
+#btnSheet{margin:0;padding:0 12px;font-size:14px;white-space:nowrap;min-height:44px}
 #tab-list .meta{margin-top:4px;font-size:13px}
 #tab-chk .seg button{padding:7px 0}
 #tab-chk h3{margin:6px 2px 4px}
@@ -239,6 +242,7 @@ body.cd .cdpop{grid-row:1/3}
       <option value="name">종목명순</option>
       <option value="amt">운동량 많은순</option>
     </select>
+    <button type="button" id="btnSheet" class="ghost">시트열기</button>
   </div>
   <div class="meta" id="listMeta"></div>
   </div>
@@ -275,6 +279,9 @@ body.cd .cdpop{grid-row:1/3}
   <button class="ghost" id="btnUrl">주소 저장</button>
   <button class="ghost" id="btnResend">전체 다시 보내기 (중복은 시트에서 제외)</button>
   <div class="note" id="syncNote"></div>
+  <label for="sheetUrl">구글 시트 주소 (기록 탭 "시트열기" 버튼용)</label>
+  <input id="sheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/.../edit#gid=...">
+  <button class="ghost" id="btnSheetUrl">시트 주소 저장</button>
 
   <h3>백업 / 복원</h3>
   <button class="ghost" id="btnCsv">CSV로 내보내기</button>
@@ -320,10 +327,10 @@ body.cd .cdpop{grid-row:1/3}
 'use strict';
 var KEY='geunryeok_note_v1';
 var DEF=[{n:'벤치프레스',p:'가슴',t:'근력'},{n:'랫풀다운',p:'등',t:'근력'},{n:'스쿼트',p:'하체',t:'근력'},{n:'숄더프레스',p:'어깨',t:'근력'},{n:'빨리걷기',p:'유산소',t:'유산소'},{n:'러닝',p:'유산소',t:'유산소'}];
-var state={ex:DEF,rec:[],url:'',pend:0,pendMap:{}};
+var state={ex:DEF,rec:[],url:'',sheetUrl:'',pend:0,pendMap:{}};
 var $=function(i){return document.getElementById(i)};
 
-function load(){try{var s=localStorage.getItem(KEY);if(s){var o=JSON.parse(s);if(o.ex)state.ex=o.ex;if(o.rec)state.rec=o.rec;if(o.pend>0)state.pend=o.pend;if(o.pendMap)state.pendMap=o.pendMap;
+function load(){try{var s=localStorage.getItem(KEY);if(s){var o=JSON.parse(s);if(o.ex)state.ex=o.ex;if(o.rec)state.rec=o.rec;if(o.pend>0)state.pend=o.pend;if(o.pendMap)state.pendMap=o.pendMap;if(typeof o.sheetUrl==='string')state.sheetUrl=o.sheetUrl;
 if(o.tm&&o.tm.length){   /* 이전 버전에서 따로 저장한 운동시간 → 같은 날(또는 그 이전) 가장 최근 운동 기록에 붙임 */
   o.tm.forEach(function(t){var b=null;state.rec.forEach(function(r){if(r.date<=t.date&&(!b||r.date>b.date||(r.date===b.date&&r.ts>b.ts)))b=r});if(b)b.sec=(b.sec||0)+t.sec});
   setTimeout(save,0);
@@ -585,6 +592,7 @@ function renderSet(){
     r.appendChild(d);b.appendChild(r);
   });
   $('url').value=state.url||'';
+  $('sheetUrl').value=state.sheetUrl||'';
   $('syncNote').textContent=state.url?'저장된 주소로 새 기록이 자동 전송됩니다. 전송 성공 여부는 앱에서 확인되지 않으니 구글 시트에서 확인하세요.':'주소를 넣지 않으면 이 휴대폰에만 저장됩니다.';
   var un=state.rec.filter(function(r){return!r.sent}).length;
   $('sub').textContent=state.rec.length+'건 기록';
@@ -857,6 +865,16 @@ $('pkClose').onclick=closePick;
 $('exPick').onclick=function(e){if(e.target===this)closePick()};
 document.querySelectorAll('.ordbtn').forEach(function(b){b.onclick=function(){view.exo=view.exo==='desc'?'asc':'desc';saveView();ordLabel();renderEx();renderSet();renderList()}});
 $('btnUrl').onclick=function(){var u=$('url').value.trim();if(u&&!/^https:\/\/script\.google\.com\//.test(u)){toast('script.google.com 주소가 아닙니다');return}state.url=u;save();renderSet();renderList();toast(u?'주소를 저장했습니다':'전송을 해제했습니다')};
+$('btnSheetUrl').onclick=function(){
+  var u=$('sheetUrl').value.trim();
+  if(u&&!/^https:\/\/docs\.google\.com\/spreadsheets\//.test(u)){toast('docs.google.com/spreadsheets 로 시작하는 시트 주소를 넣어주세요');return}
+  state.sheetUrl=u;save();toast(u?'시트 주소를 저장했습니다':'시트 주소를 지웠습니다');
+};
+$('btnSheet').onclick=function(){
+  if(!state.sheetUrl){toast('설정 탭에서 구글 시트 주소를 먼저 저장하세요');return}
+  var w=null;try{w=window.open(state.sheetUrl,'_blank')}catch(e){}
+  if(!w)location.href=state.sheetUrl;
+};
 $('btnResend').onclick=function(){if(!state.url){toast('먼저 주소를 저장하세요');return}send(state.rec.slice(),false)};
 $('btnCsv').onclick=exportCsv;
 $('btnImp').onclick=function(){$('file').click()};
