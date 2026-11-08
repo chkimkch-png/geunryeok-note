@@ -15,6 +15,7 @@
 :root{--navy:#1F2A44;--orange:#FF7A00;--bg:#F4F5F8;--card:#fff;--line:#DDE1E8;--text:#1b1f2a;--sub:#6b7385}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
+html,body{overscroll-behavior-y:contain}
 body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,"Noto Sans KR","Malgun Gothic",sans-serif;font-size:17px;padding-bottom:84px}
 #top{position:sticky;top:0;z-index:5}
 header{background:var(--navy);color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
@@ -814,6 +815,7 @@ document.querySelectorAll('nav button').forEach(function(b){
     document.querySelectorAll('.tab').forEach(function(x){x.className='tab'});
     $('tab-'+b.getAttribute('data-t')).className='tab active';
     document.body.classList.toggle('fit',b.getAttribute('data-t')==='in');
+    try{sessionStorage.setItem('geunryeok_tab',b.getAttribute('data-t'))}catch(e){}
     if(b.getAttribute('data-t')==='set')renderSet();
     if(b.getAttribute('data-t')==='chk')renderChk();
     setNavH();window.scrollTo(0,0);
@@ -1042,6 +1044,7 @@ setNavH();window.addEventListener('resize',setNavH);window.addEventListener('ori
 load();loadView();ordLabel();refreshParts();renderCnt();
 $('date').value=today();
 renderEx();renderList();renderSum();renderSet();
+try{var st=sessionStorage.getItem('geunryeok_tab');if(st&&st!=='in'){var bb=document.querySelector('nav button[data-t="'+st+'"]');if(bb)bb.onclick()}}catch(e){}
 })();
 
 /* PWA: 서비스 워커 등록 */
