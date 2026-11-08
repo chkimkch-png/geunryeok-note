@@ -21,7 +21,7 @@ header{background:var(--navy);color:#fff;padding:14px 16px;display:flex;justify-
 #today{font-size:15px;font-weight:600;color:#fff;white-space:nowrap}
 header h1{margin:0;font-size:20px}
 header span{font-size:13px;color:#c9d0e0}
-main{padding:14px;max-width:560px;margin:0 auto}
+main{padding:8px 14px 14px;max-width:560px;margin:0 auto}
 .tab{display:none}.tab.active{display:block}
 label{display:block;font-size:14px;color:var(--sub);margin:12px 0 4px}
 input,select{width:100%;padding:13px 12px;font-size:17px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--text)}
@@ -158,6 +158,21 @@ body.cd #tab-in .memo{grid-row:4;align-self:start}
 body.cd #tab-in .bot{grid-row:5}
 #tab-in #live{margin:0;padding:6px 10px;font-size:13px;line-height:1.25;display:flex;align-items:center}
 #tab-in #btnSave{margin:0;height:46px;padding:0}
+/* ===== 스크롤해도 상단 고정 (기록·누적·점검·설정) ===== */
+.stk{position:sticky;top:var(--topH,120px);z-index:4;background:var(--bg);margin:0 -14px;padding:4px 14px 4px;box-shadow:0 3px 4px -3px rgba(0,0,0,.18)}
+#tab-set>h3:first-child{position:sticky;top:var(--topH,120px);z-index:4;background:var(--bg);margin:0 -14px;padding:8px 14px 6px;box-shadow:0 3px 4px -3px rgba(0,0,0,.18);align-items:center}
+#tab-list .fbar,#tab-sum .fbar{margin-bottom:0}
+#tab-list .meta{margin-top:4px;font-size:13px}
+#tab-chk .seg button{padding:7px 0}
+#tab-chk h3{margin:6px 2px 4px}
+#tab-chk .pnav{margin:6px 0 2px}
+#tab-chk .pnav button{padding:4px 0}
+#tab-chk .sumcards{margin:4px 0 2px;gap:6px}
+#tab-chk .sc{padding:5px 4px}
+#tab-chk .sc b{margin:1px 0}
+#tab-chk .sc br{display:none}
+#tab-chk .sc .dl{display:block}
+#tab-chk .meta{margin-top:2px;font-size:12px}
 </style>
 </head>
 <body class="fit">
@@ -203,6 +218,7 @@ body.cd #tab-in .bot{grid-row:5}
 </section>
 
 <section class="tab" id="tab-list">
+  <div class="stk">
   <div class="fbar">
     <select id="fEx" aria-label="종목 선택"></select>
     <select id="fSort" aria-label="정렬">
@@ -212,10 +228,13 @@ body.cd #tab-in .bot{grid-row:5}
       <option value="amt">운동량 많은순</option>
     </select>
   </div>
+  <div class="meta" id="listMeta"></div>
+  </div>
   <div id="list"></div>
 </section>
 
 <section class="tab" id="tab-sum">
+  <div class="stk">
   <div class="fbar one">
     <select id="sSort" aria-label="누적 정렬">
       <option value="amt">누적량 많은순</option>
@@ -223,6 +242,7 @@ body.cd #tab-in .bot{grid-row:5}
       <option value="recent">최근 운동순</option>
       <option value="days">운동일 많은순</option>
     </select>
+  </div>
   </div>
   <div id="sum"></div>
 </section>
@@ -475,7 +495,7 @@ function recCard(r,showDate){
   return c;
 }
 function renderList(){
-  var box=$('list');box.innerHTML='';
+  var box=$('list');box.innerHTML='';$('listMeta').textContent='';
   $('sub').textContent=state.rec.length+'건 기록';
   buildFilter();
   if(!state.rec.length){box.appendChild(el('p','empty','아직 기록이 없습니다.'));return}
@@ -489,7 +509,7 @@ function renderList(){
     return ta-tb||recScore(b)-recScore(a)||cmpNew(a,b);
   };
   arr.sort(cmp);
-  box.appendChild(el('div','meta',arr.length+'건 표시'+(view.ex!=='all'?' (전체 '+state.rec.length+'건 중)':'')+(view.sort==='amt'?' · 근력은 운동량(kg), 유산소는 거리(km) 기준':'')));
+  $('listMeta').textContent=arr.length+'건 표시'+(view.ex!=='all'?' (전체 '+state.rec.length+'건 중)':'')+(view.sort==='amt'?' · 근력은 운동량(kg), 유산소는 거리(km) 기준':'');
   if(view.sort==='new'||view.sort==='old'){
     var groups={},order=[];
     arr.forEach(function(r){if(!groups[r.date]){groups[r.date]=[];order.push(r.date)}groups[r.date].push(r)});
@@ -672,6 +692,7 @@ function renderToday(){
   var t=today(),recs=state.rec.filter(function(r){return r.date===t});
   var h='<h3>오늘 '+t+' ('+wd(t)+')<em>오늘 수행한 운동'+(secSum(recs)>0?' · 운동시간 '+tmKo(secSum(recs)):'')+'</em></h3>';
   if(!recs.length)return h+'<p class="empty">오늘 입력한 기록이 없습니다.</p>';
+  h+='<!--STK-->';
   var A=aggregate(recs),names=sortToday(A),mx={'근력':0,'유산소':0};
   names.forEach(function(n){var k=A[n].type==='유산소'?'유산소':'근력';mx[k]=Math.max(mx[k],mval(A[n]))});
   names.forEach(function(n){
@@ -701,6 +722,7 @@ function renderPrev(){
       +((ts>0||pts>0)?'<div class="sumcards" style="grid-template-columns:1fr"><div class="sc"><small>운동 시간</small><b>'+tmKo(ts)+'</b><small>이전 '+tmKo(pts)+'</small><br>'+(tmDelta(ts,pts)||'&nbsp;')+'</div></div>':'')
       +'<div class="meta">합계는 직전 기록이 있는 종목만 비교한 값입니다.</div>';
   }
+  h+='<!--STK-->';
   names.forEach(function(n){
     var c=A[n],p=PV[n],u=munit(c),cv=mval(c),pv=p?mval(p):0,mx=Math.max(cv,pv),cls=c.type==='유산소'?'c':'s';
     h+='<div class="brow"><div class="top"><span class="bn">'+esc(n)+'<small>'+esc(c.part)+'</small></span>'+(p?delta(cv,pv,u):'<span class="dl new">첫 기록</span>')+'</div>';
@@ -762,14 +784,18 @@ function renderPeriod(mode){
   var ts2=secSum(recs),pts2=secSum(precs);
   if(ts2>0||pts2>0)h+='<div class="sumcards" style="grid-template-columns:1fr"><div class="sc"><small>운동 시간</small><b>'+tmKo(ts2)+'</b>'+(tmDelta(ts2,pts2)||'&nbsp;')+'</div></div>';
   h+='<div class="meta">'+note+'</div>';
-  h+=typeBars(A,P,'근력')+typeBars(A,P,'유산소')+timeline(mode,R,recs,'근력')+timeline(mode,R,recs,'유산소');
+  var bars=typeBars(A,P,'근력')+typeBars(A,P,'유산소'),h3m=bars.match(/^<h3[\s\S]*?<\/h3>/);
+  if(h3m)h+=h3m[0]+'<!--STK-->'+bars.slice(h3m[0].length);else h+='<!--STK-->'+bars;
+  h+=timeline(mode,R,recs,'근력')+timeline(mode,R,recs,'유산소');
   return h;
 }
 function renderChk(){
   var seg='<div class="seg">'+[['prev','이전'],['today','오늘'],['week','주간'],['month','월간'],['year','연간']].map(function(x){
     return '<button type="button" data-m="'+x[0]+'" class="'+(chk.mode===x[0]?'on':'')+'">'+x[1]+'</button>';
   }).join('')+'</div>';
-  $('chkBody').innerHTML=seg+(chk.mode==='prev'?renderPrev():chk.mode==='today'?renderToday():renderPeriod(chk.mode));
+  var html=chk.mode==='prev'?renderPrev():chk.mode==='today'?renderToday():renderPeriod(chk.mode);
+  var k=html.indexOf('<!--STK-->'),pin=k>=0?html.slice(0,k):html,rest=k>=0?html.slice(k+10):'';
+  $('chkBody').innerHTML='<div class="stk">'+seg+pin+'</div>'+rest;
 }
 $('tab-chk').addEventListener('click',function(e){
   var b=e.target&&e.target.closest?e.target.closest('button'):null;if(!b)return;
@@ -790,7 +816,7 @@ document.querySelectorAll('nav button').forEach(function(b){
     document.body.classList.toggle('fit',b.getAttribute('data-t')==='in');
     if(b.getAttribute('data-t')==='set')renderSet();
     if(b.getAttribute('data-t')==='chk')renderChk();
-    window.scrollTo(0,0);
+    setNavH();window.scrollTo(0,0);
   };
 });
 $('ex').onchange=onEx;
@@ -1011,8 +1037,8 @@ function setCnt(n){cnt=n;try{localStorage.setItem(CNTKEY,String(cnt))}catch(e){}
   });
   b.addEventListener('contextmenu',function(e){e.preventDefault()});
 })();
-function setNavH(){var n=document.querySelector('nav');if(n)document.documentElement.style.setProperty('--navH',n.offsetHeight+'px')}
-setNavH();window.addEventListener('resize',setNavH);window.addEventListener('orientationchange',setNavH);
+function setNavH(){var n=document.querySelector('nav'),t=$('top'),st=document.documentElement.style;if(n)st.setProperty('--navH',n.offsetHeight+'px');if(t)st.setProperty('--topH',t.offsetHeight+'px')}
+setNavH();window.addEventListener('resize',setNavH);window.addEventListener('orientationchange',setNavH);window.addEventListener('load',setNavH);
 load();loadView();ordLabel();refreshParts();renderCnt();
 $('date').value=today();
 renderEx();renderList();renderSum();renderSet();
