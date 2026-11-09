@@ -54,6 +54,7 @@ nav button{margin:0;border-radius:0;background:#fff;color:var(--sub);padding:14p
 nav button.on{color:var(--orange);border-top:3px solid var(--orange);padding-top:11px}
 h3{margin:18px 2px 6px;font-size:15px;color:var(--navy);display:flex;justify-content:space-between}
 h3 em{font-style:normal;color:var(--sub);font-weight:400;font-size:13px}
+h3 em.sortlbl{color:var(--orange);font-weight:800;font-size:14px}
 .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px}
 .card .t{display:flex;justify-content:space-between;font-weight:700}
 .card .t small{color:var(--sub);font-weight:400}
@@ -625,7 +626,9 @@ function renderSum(){
     for(var i=0;i<5;i++){if(r.reps[i]>0){var w=r.w[i]>0?r.w[i]:r.base;if(w>o.max)o.max=w}}
   });
   var names=Object.keys(m),st=names.filter(function(n){return m[n].type!=='유산소'}),ca=names.filter(function(n){return m[n].type==='유산소'});
-  var key=view.sum;
+  var key=view.sp?'amt':view.sum;   /* 부위 버튼: 그 부위 종목만 기본 순서로 / 선택 버튼: 전체 종목을 고른 방식으로 */
+  var so=$('sSort').options[$('sSort').selectedIndex],lbl=view.sp?view.sp:(so?so.textContent:'');
+  var hl='<em class="sortlbl">'+esc(lbl)+'</em>';
   function sorter(metric){return function(a,b){
     if(key==='name')return koCmp(a,b);
     if(key==='recent')return (m[a].last<m[b].last?1:m[a].last>m[b].last?-1:0)||koCmp(a,b);
@@ -636,16 +639,16 @@ function renderSum(){
   ca.sort(sorter(function(o){return o.dist}));
   var h='',tv=0,td=0,tsv=0,tsc=0;
   if(st.length){
-    h+='<h3>근력 운동</h3><table><tr><th>종목</th><th>운동일</th><th>최고무게</th><th>누적 운동량(kg)</th><th>운동시간</th></tr>';
+    h+='<h3>근력 운동'+hl+'</h3><table><tr><th>종목</th><th>운동일</th><th>최고무게</th><th>누적 운동량(kg)</th><th>운동시간</th></tr>';
     st.forEach(function(n){var o=m[n];tv+=o.vol;tsv+=o.sec;h+='<tr><td>'+esc(n)+'</td><td>'+Object.keys(o.days).length+'('+o.cnt+')</td><td>'+fmt(o.max)+'</td><td><b>'+fmt(o.vol)+'</b></td><td>'+(o.sec>0?clockLong(o.sec):'-')+'</td></tr>'});
     h+='<tr><td><b>합계</b></td><td></td><td></td><td><b>'+fmt(tv)+'</b></td><td><b>'+(tsv>0?clockLong(tsv):'-')+'</b></td></tr></table>';
   }
   if(ca.length){
-    h+='<h3>유산소 운동</h3><table><tr><th>종목</th><th>운동일</th><th>누적 시간</th><th>누적 거리(km)</th><th>운동시간</th></tr>';
+    h+='<h3>유산소 운동'+hl+'</h3><table><tr><th>종목</th><th>운동일</th><th>누적 시간</th><th>누적 거리(km)</th><th>운동시간</th></tr>';
     ca.forEach(function(n){var o=m[n];td+=o.dist;tsc+=o.sec;h+='<tr><td>'+esc(n)+'</td><td>'+Object.keys(o.days).length+'('+o.cnt+')</td><td>'+(o.dsec>0?clockLong(o.dsec):'-')+'</td><td><b>'+fmt(o.dist)+'</b></td><td>'+(o.sec>0?clockLong(o.sec):'-')+'</td></tr>'});
     h+='<tr><td><b>합계</b></td><td></td><td></td><td><b>'+fmt(td)+'</b></td><td><b>'+(tsc>0?clockLong(tsc):'-')+'</b></td></tr></table>';
   }
-  box.innerHTML=(view.sp?'<div class="meta">부위: '+esc(view.sp)+' (같은 버튼을 다시 누르면 전체)</div>':'')+h;
+  box.innerHTML=h;
 }
 
 function renderSet(){
@@ -900,7 +903,7 @@ $('pbtns').onclick=function(e){
   if(!b||b===this)return;
   var p=b.getAttribute('data-p');view.sp=(view.sp===p?'':p);saveView();renderSum();
 };
-$('sSortBtn').onclick=function(){openPickCfg({title:'정렬 방식',ord:false,items:function(){return selItems($('sSort'))},cur:function(){return view.sum},pick:function(v){view.sum=v;$('sSort').value=v;saveView();renderSum()}})};
+$('sSortBtn').onclick=function(){openPickCfg({title:'정렬 방식',ord:false,items:function(){return selItems($('sSort'))},cur:function(){return view.sum},pick:function(v){view.sum=v;view.sp='';$('sSort').value=v;saveView();renderSum()}})};
 $('fEx').onchange=function(){view.ex=this.value;saveView();renderList()};
 $('fSort').onchange=function(){view.sort=this.value;saveView();renderList()};
 $('sSort').onchange=function(){view.sum=this.value;saveView();renderSum()};
