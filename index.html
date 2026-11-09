@@ -187,6 +187,12 @@ body.cd #tab-in .bot{grid-row:5}
 .cdpop .cdl{font-size:14px;font-weight:700;opacity:.85;line-height:1.2}
 #cdNum{font-size:clamp(56px,23vw,104px);font-weight:900;line-height:1.05;font-variant-numeric:tabular-nums;letter-spacing:-1px}
 body.cd .cdpop{grid-row:1/3}
+/* 운동 시간 카드: 한 줄 */
+.sumcards.one{grid-template-columns:1fr}
+#tab-chk .sumcards.one .sc{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:10px;padding:5px 12px;text-align:left}
+#tab-chk .sumcards.one .sc small{flex:none}
+#tab-chk .sumcards.one .sc b{font-size:19px;margin:0;flex:none}
+#tab-chk .sumcards.one .sc .dl{display:inline;white-space:nowrap;font-size:14px}
 </style>
 </head>
 <body class="fit">
@@ -282,6 +288,8 @@ body.cd .cdpop{grid-row:1/3}
   <label for="sheetUrl">구글 시트 주소 (기록 탭 "시트열기" 버튼용)</label>
   <input id="sheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/.../edit#gid=...">
   <button class="ghost" id="btnSheetUrl">시트 주소 저장</button>
+  <label for="sheetMode">시트 열기 방식</label>
+  <select id="sheetMode"><option value="app">구글 시트 앱으로 바로 열기 (깜빡임 줄이기)</option><option value="web">브라우저로 열기 (이전 방식)</option></select>
 
   <h3>백업 / 복원</h3>
   <button class="ghost" id="btnCsv">CSV로 내보내기</button>
@@ -327,10 +335,10 @@ body.cd .cdpop{grid-row:1/3}
 'use strict';
 var KEY='geunryeok_note_v1';
 var DEF=[{n:'벤치프레스',p:'가슴',t:'근력'},{n:'랫풀다운',p:'등',t:'근력'},{n:'스쿼트',p:'하체',t:'근력'},{n:'숄더프레스',p:'어깨',t:'근력'},{n:'빨리걷기',p:'유산소',t:'유산소'},{n:'러닝',p:'유산소',t:'유산소'}];
-var state={ex:DEF,rec:[],url:'',sheetUrl:'',pend:0,pendMap:{}};
+var state={ex:DEF,rec:[],url:'',sheetUrl:'',sheetMode:'app',pend:0,pendMap:{}};
 var $=function(i){return document.getElementById(i)};
 
-function load(){try{var s=localStorage.getItem(KEY);if(s){var o=JSON.parse(s);if(o.ex)state.ex=o.ex;if(o.rec)state.rec=o.rec;if(o.pend>0)state.pend=o.pend;if(o.pendMap)state.pendMap=o.pendMap;if(typeof o.sheetUrl==='string')state.sheetUrl=o.sheetUrl;
+function load(){try{var s=localStorage.getItem(KEY);if(s){var o=JSON.parse(s);if(o.ex)state.ex=o.ex;if(o.rec)state.rec=o.rec;if(o.pend>0)state.pend=o.pend;if(o.pendMap)state.pendMap=o.pendMap;if(typeof o.sheetUrl==='string')state.sheetUrl=o.sheetUrl;if(o.sheetMode==='web'||o.sheetMode==='app')state.sheetMode=o.sheetMode;
 if(o.tm&&o.tm.length){   /* 이전 버전에서 따로 저장한 운동시간 → 같은 날(또는 그 이전) 가장 최근 운동 기록에 붙임 */
   o.tm.forEach(function(t){var b=null;state.rec.forEach(function(r){if(r.date<=t.date&&(!b||r.date>b.date||(r.date===b.date&&r.ts>b.ts)))b=r});if(b)b.sec=(b.sec||0)+t.sec});
   setTimeout(save,0);
@@ -537,7 +545,7 @@ function renderList(){
     var groups={},order=[];
     arr.forEach(function(r){if(!groups[r.date]){groups[r.date]=[];order.push(r.date)}groups[r.date].push(r)});
     order.forEach(function(d){
-      var vol=0,dist=0,sc=0;groups[d].forEach(function(r){vol+=r.vol;dist+=r.dist;sc+=r.sec||0});
+      var vol=0,dist=0,sc=0;groups[d].forEach(function(r){vol+=r.vol;dist+=r.dist;sc+=recTime(r)});
       var h=el('h3',null,d+' ('+wd(d)+')');
       h.appendChild(el('em',null,(vol?'운동량 '+fmt(vol)+'kg ':'')+(dist?'거리 '+fmt(dist)+'km ':'')+(sc?'운동시간 '+tmKo(sc):'')));
       box.appendChild(h);
@@ -593,6 +601,7 @@ function renderSet(){
   });
   $('url').value=state.url||'';
   $('sheetUrl').value=state.sheetUrl||'';
+  $('sheetMode').value=state.sheetMode||'app';
   $('syncNote').textContent=state.url?'저장된 주소로 새 기록이 자동 전송됩니다. 전송 성공 여부는 앱에서 확인되지 않으니 구글 시트에서 확인하세요.':'주소를 넣지 않으면 이 휴대폰에만 저장됩니다.';
   var un=state.rec.filter(function(r){return!r.sent}).length;
   $('sub').textContent=state.rec.length+'건 기록';
@@ -663,8 +672,8 @@ function buckets(mode,R){
 function aggregate(recs){
   var m={};
   recs.forEach(function(r){
-    var o=m[r.ex]||(m[r.ex]={name:r.ex,type:recType(r),part:r.part,sec:0,vol:0,sets:0,reps:0,dist:0,min:0,dsec:0,dm:0,mm:0,maxW:0,days:{}});
-    o.sec+=r.sec||0;o.vol+=r.vol;o.sets+=r.sets;o.dist+=r.dist;o.min+=r.min;o.dsec+=rsec(r);o.days[r.date]=1;
+    var o=m[r.ex]||(m[r.ex]={name:r.ex,type:recType(r),part:r.part,sec:0,tsec:0,vol:0,sets:0,reps:0,dist:0,min:0,dsec:0,dm:0,mm:0,maxW:0,days:{}});
+    o.sec+=r.sec||0;o.tsec+=recTime(r);o.vol+=r.vol;o.sets+=r.sets;o.dist+=r.dist;o.min+=r.min;o.dsec+=rsec(r);o.days[r.date]=1;
     if(r.dist>0&&rsec(r)>0){o.dm+=r.dist;o.mm+=rsec(r)/60}
     for(var i=0;i<5;i++){if(r.reps[i]>0){o.reps+=r.reps[i];var w=r.w[i]>0?r.w[i]:r.base;if(w>o.maxW)o.maxW=w}}
   });
@@ -735,7 +744,7 @@ function renderPrev(){
   var A=aggregate(recs),names=sortToday(A),PV={},sv=0,psv=0,cd=0,pcd=0,hasPrev=0,ts=0,pts=0;
   names.forEach(function(n){
     var p=prevOf(n,t);PV[n]=p;if(!p)return;
-    hasPrev++;ts+=A[n].sec||0;pts+=p.sec||0;
+    hasPrev++;ts+=A[n].tsec||0;pts+=p.tsec||0;
     if(A[n].type==='유산소'){cd+=A[n].dist;pcd+=p.dist}else{sv+=A[n].vol;psv+=p.vol}
   });
   if(hasPrev){
@@ -743,7 +752,7 @@ function renderPrev(){
       +((sv>0||psv>0)?'<div class="sc"><small>근력 운동량</small><b>'+fmt(sv)+'kg</b><small>이전 '+fmt(psv)+'kg</small><br>'+(delta(sv,psv,'kg')||'&nbsp;')+'</div>':'')
       +((cd>0||pcd>0)?'<div class="sc"><small>유산소 거리</small><b>'+fmt(cd)+'km</b><small>이전 '+fmt(pcd)+'km</small><br>'+(delta(cd,pcd,'km')||'&nbsp;')+'</div>':'')
       +'<div class="sc"><small>비교 종목</small><b>'+hasPrev+'개</b><small>오늘 '+names.length+'개 중</small></div></div>'
-      +((ts>0||pts>0)?'<div class="sumcards" style="grid-template-columns:1fr"><div class="sc"><small>운동 시간</small><b>'+tmKo(ts)+'</b><small>이전 '+tmKo(pts)+'</small><br>'+(tmDelta(ts,pts)||'&nbsp;')+'</div></div>':'')
+      +((ts>0||pts>0)?'<div class="sumcards one"><div class="sc"><small>운동 시간</small><b>'+tmKo(ts)+'</b>'+(tmDelta(ts,pts)||'')+'</div></div>':'')
       +'<div class="meta">합계는 직전 기록이 있는 종목만 비교한 값입니다.</div>';
   }
   h+='<!--STK-->';
@@ -806,7 +815,7 @@ function renderPeriod(mode){
     +'<div class="sc"><small>유산소 거리</small><b>'+fmt(cd)+'km</b>'+(delta(cd,pcd,'km')||'&nbsp;')+'</div>'
     +'<div class="sc"><small>운동한 날</small><b>'+dn+'일</b>'+(delta(dn,pdn,'일')||'&nbsp;')+'</div></div>';
   var ts2=secSum(recs),pts2=secSum(precs);
-  if(ts2>0||pts2>0)h+='<div class="sumcards" style="grid-template-columns:1fr"><div class="sc"><small>운동 시간</small><b>'+tmKo(ts2)+'</b>'+(tmDelta(ts2,pts2)||'&nbsp;')+'</div></div>';
+  if(ts2>0||pts2>0)h+='<div class="sumcards one"><div class="sc"><small>운동 시간</small><b>'+tmKo(ts2)+'</b>'+(tmDelta(ts2,pts2)||'')+'</div></div>';
   h+='<div class="meta">'+note+'</div>';
   var bars=typeBars(A,P,'근력')+typeBars(A,P,'유산소'),h3m=bars.match(/^<h3[\s\S]*?<\/h3>/);
   if(h3m)h+=h3m[0]+'<!--STK-->'+bars.slice(h3m[0].length);else h+='<!--STK-->'+bars;
@@ -864,16 +873,30 @@ $('exBtn').onclick=openPick;
 $('pkClose').onclick=closePick;
 $('exPick').onclick=function(e){if(e.target===this)closePick()};
 document.querySelectorAll('.ordbtn').forEach(function(b){b.onclick=function(){view.exo=view.exo==='desc'?'asc':'desc';saveView();ordLabel();renderEx();renderSet();renderList()}});
-$('btnUrl').onclick=function(){var u=$('url').value.trim();if(u&&!/^https:\/\/script\.google\.com\//.test(u)){toast('script.google.com 주소가 아닙니다');return}state.url=u;save();renderSet();renderList();toast(u?'주소를 저장했습니다':'전송을 해제했습니다')};
+$('btnUrl').onclick=function(){var u=$('url').value.trim();
+  if(/^https:\/\/docs\.google\.com\/spreadsheets\//.test(u)){state.sheetUrl=u;save();renderSet();toast('시트 주소로 저장했습니다 (Apps Script 주소는 그대로입니다)');return}   /* 시트 주소를 이 칸에 넣은 경우 시트 주소로 저장 */
+  if(u&&!/^https:\/\/script\.google\.com\//.test(u)){toast('Apps Script 주소(script.google.com)가 아닙니다. 시트 주소는 아래 "구글 시트 주소" 칸에 넣어주세요');return}state.url=u;save();renderSet();renderList();toast(u?'주소를 저장했습니다':'전송을 해제했습니다')};
 $('btnSheetUrl').onclick=function(){
   var u=$('sheetUrl').value.trim();
   if(u&&!/^https:\/\/docs\.google\.com\/spreadsheets\//.test(u)){toast('docs.google.com/spreadsheets 로 시작하는 시트 주소를 넣어주세요');return}
   state.sheetUrl=u;save();toast(u?'시트 주소를 저장했습니다':'시트 주소를 지웠습니다');
 };
+$('sheetMode').onchange=function(){state.sheetMode=$('sheetMode').value==='web'?'web':'app';save();toast('시트 열기 방식을 저장했습니다')};
+/* 시트열기: 안드로이드에서는 구글 시트 앱을 바로 호출해 중간의 빈 창(깜빡임)을 거치지 않음. 시트 앱이 없으면 브라우저로 자동 연결 */
+function sheetIntentUrl(u){
+  var m=u.match(/^https:\/\/(docs\.google\.com\/spreadsheets\/[^#]*)(#.*)?$/);
+  if(!m)return '';
+  return 'intent://'+m[1]+(m[2]||'')+'#Intent;scheme=https;package=com.google.android.apps.docs.editors.sheets;S.browser_fallback_url='+encodeURIComponent(u)+';end';
+}
 $('btnSheet').onclick=function(){
-  if(!state.sheetUrl){toast('설정 탭에서 구글 시트 주소를 먼저 저장하세요');return}
-  var w=null;try{w=window.open(state.sheetUrl,'_blank')}catch(e){}
-  if(!w)location.href=state.sheetUrl;
+  var u=state.sheetUrl;
+  if(!u){toast('설정 탭에서 구글 시트 주소를 먼저 저장하세요');return}
+  if(state.sheetMode!=='web'&&/Android/i.test(navigator.userAgent||'')){
+    var it=sheetIntentUrl(u);
+    if(it){toast('구글 시트를 여는 중…');location.href=it;return}
+  }
+  var w=null;try{w=window.open(u,'_blank')}catch(e){}
+  if(!w)location.href=u;
 };
 $('btnResend').onclick=function(){if(!state.url){toast('먼저 주소를 저장하세요');return}send(state.rec.slice(),false)};
 $('btnCsv').onclick=exportCsv;
@@ -900,7 +923,8 @@ function parseTm(v){
   if(c)return c[3]!==undefined?(+c[1])*3600+(+c[2])*60+(+c[3]):(+c[1])*60+(+c[2]);
   return Math.round(num(v)*60);   /* 이전 CSV의 분 단위 숫자 */
 }
-function secSum(a){var n=0;a.forEach(function(r){n+=r.sec||0});return n}
+function recTime(r){return recType(r)==='유산소'?(rsec(r)>0?rsec(r):(r.sec||0)):(r.sec||0)}   /* 한 기록의 운동시간(초) */
+function secSum(a){var n=0;a.forEach(function(r){n+=recTime(r)});return n}
 function tmDelta(cur,prev){
   if(!(prev>0))return cur>0?'<span class="dl new">첫 기록</span>':'';
   var d=cur-prev;if(d===0)return '<span class="dl same">＝ 동일</span>';
