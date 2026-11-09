@@ -198,6 +198,15 @@ body.cd .cdpop{grid-row:1/3}
 #tab-list .fbar .selbtn{padding:0 8px;font-size:14px}
 .selbtn span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pkg{position:sticky;top:0;padding:8px 16px;font-size:13px;font-weight:700;color:var(--sub);background:#f1f3f7;border-bottom:1px solid var(--line)}
+/* 타이머 줄(반복시간·시작·저장)은 입력 탭에서만 표시 */
+body:not(.fit) #ibar{display:none}
+/* 누적 탭 상단: 선택 버튼 + 부위 버튼 */
+.pbar{display:flex;gap:6px;align-items:stretch}
+.pb{margin:0;width:auto;height:42px;padding:0 4px;font-size:14px;font-weight:700;border-radius:10px;background:#fff;color:var(--navy);border:1px solid var(--line)}
+.pb.pick{flex:0 0 auto;padding:0 12px;background:var(--navy);color:#fff;border-color:var(--navy)}
+.pbtns{flex:1;display:flex;gap:6px;overflow-x:auto;min-width:0}
+.pbtns .pb{flex:1 0 auto;min-width:44px}
+.pb.on{background:var(--orange);border-color:var(--orange);color:#fff}
 </style>
 </head>
 <body class="fit">
@@ -264,15 +273,13 @@ body.cd .cdpop{grid-row:1/3}
 
 <section class="tab" id="tab-sum">
   <div class="stk">
-  <div class="fbar one">
-    <button type="button" id="sSortBtn" class="selbtn" aria-haspopup="dialog"><span id="sSortTxt"></span><i>▾</i></button>
+    <div class="pbar"><button type="button" id="sSortBtn" class="pb pick">선택</button><div id="pbtns" class="pbtns"></div></div>
     <select id="sSort" aria-label="누적 정렬" hidden>
       <option value="amt">누적량 많은순</option>
       <option value="name">종목명순</option>
       <option value="recent">최근 운동순</option>
       <option value="days">운동일 많은순</option>
     </select>
-  </div>
   </div>
   <div id="sum"></div>
 </section>
@@ -487,15 +494,25 @@ function saveRec(){
 }
 
 /* ===== 보기 설정(필터·정렬) ===== */
-var view={ex:'all',sort:'new',sum:'amt',exo:'asc'},VKEY='geunryeok_note_view_v1';
-function loadView(){try{var v=JSON.parse(localStorage.getItem(VKEY));if(v){if(typeof v.ex==='string')view.ex=v.ex;if(typeof v.sort==='string')view.sort=v.sort;if(typeof v.sum==='string')view.sum=v.sum;if(v.exo==='asc'||v.exo==='desc')view.exo=v.exo}}catch(e){}}
+var view={ex:'all',sort:'new',sum:'amt',sp:'',exo:'asc'},VKEY='geunryeok_note_view_v1';
+function loadView(){try{var v=JSON.parse(localStorage.getItem(VKEY));if(v){if(typeof v.ex==='string')view.ex=v.ex;if(typeof v.sort==='string')view.sort=v.sort;if(typeof v.sum==='string')view.sum=v.sum;if(typeof v.sp==='string')view.sp=v.sp;if(v.exo==='asc'||v.exo==='desc')view.exo=v.exo}}catch(e){}}
 function saveView(){try{localStorage.setItem(VKEY,JSON.stringify(view))}catch(e){}}
 function recType(r){return r.type||(r.sets?'근력':'유산소')}
 function recScore(r){return recType(r)==='유산소'?r.dist:r.vol}
 function syncSelBtns(){
-  [['fEx','fExTxt'],['fSort','fSortTxt'],['sSort','sSortTxt']].forEach(function(p){
+  [['fEx','fExTxt'],['fSort','fSortTxt']].forEach(function(p){
     var sel=$(p[0]),o=sel.options[sel.selectedIndex];$(p[1]).textContent=o?o.textContent:'';
   });
+}
+function pnorm(p){return pkey(p).replace(/운동$/,'')}   /* '하체 운동' → '하체' */
+var PART_ORDER=['가슴','등','어깨','팔','하체','유산소'];
+function partList(){
+  var seen={},a=PART_ORDER.slice(),extra=[];
+  a.forEach(function(p){seen[p]=1});
+  function add(p){var k=pnorm(p);if(k&&!seen[k]){seen[k]=1;extra.push(k)}}
+  state.ex.forEach(function(e){add(e.p)});state.rec.forEach(function(r){add(r.part)});
+  extra.sort(koCmp);
+  return a.concat(extra);
 }
 function koCmp(a,b){return String(a).localeCompare(String(b),'ko')}
 function exCmp(a,b){var c=koCmp(a,b);return view.exo==='desc'?-c:c}
@@ -594,9 +611,14 @@ function renderList(){
 function renderSum(){
   var box=$('sum');
   $('sSort').value=view.sum;syncSelBtns();
+  var pl=partList();
+  if(view.sp&&pl.indexOf(view.sp)<0)view.sp='';
+  $('pbtns').innerHTML=pl.map(function(p){return '<button type="button" class="pb'+(view.sp===p?' on':'')+'" data-p="'+esc(p)+'">'+esc(p)+'</button>'}).join('');
   if(!state.rec.length){box.innerHTML='<p class="empty">기록이 쌓이면 누적이 표시됩니다.</p>';return}
+  var recs=view.sp?state.rec.filter(function(r){return pnorm(r.part)===view.sp}):state.rec;
+  if(!recs.length){box.innerHTML='<p class="empty">'+esc(view.sp)+' 부위의 기록이 없습니다.</p>';return}
   var m={};
-  state.rec.forEach(function(r){
+  recs.forEach(function(r){
     var o=m[r.ex]||(m[r.ex]={days:{},cnt:0,sec:0,dsec:0,vol:0,dist:0,min:0,max:0,last:'',type:recType(r),part:r.part});
     o.days[r.date]=1;o.cnt++;o.sec+=r.sec||0;o.vol+=r.vol;o.dist+=r.dist;o.min+=r.min;o.dsec+=rsec(r);
     if(r.date>o.last)o.last=r.date;
@@ -623,7 +645,7 @@ function renderSum(){
     ca.forEach(function(n){var o=m[n];td+=o.dist;tsc+=o.sec;h+='<tr><td>'+esc(n)+'</td><td>'+Object.keys(o.days).length+'('+o.cnt+')</td><td>'+(o.dsec>0?clockLong(o.dsec):'-')+'</td><td><b>'+fmt(o.dist)+'</b></td><td>'+(o.sec>0?clockLong(o.sec):'-')+'</td></tr>'});
     h+='<tr><td><b>합계</b></td><td></td><td></td><td><b>'+fmt(td)+'</b></td><td><b>'+(tsc>0?clockLong(tsc):'-')+'</b></td></tr></table>';
   }
-  box.innerHTML=h;
+  box.innerHTML=(view.sp?'<div class="meta">부위: '+esc(view.sp)+' (같은 버튼을 다시 누르면 전체)</div>':'')+h;
 }
 
 function renderSet(){
@@ -873,6 +895,11 @@ $('tab-chk').addEventListener('click',function(e){
 });
 $('fExBtn').onclick=function(){openPickCfg({title:'정렬',ord:true,items:function(){return selItems($('fEx'))},cur:function(){return view.ex},pick:function(v){view.ex=v;$('fEx').value=v;saveView();renderList()}})};
 $('fSortBtn').onclick=function(){openPickCfg({title:'정렬 방식',ord:false,items:function(){return selItems($('fSort'))},cur:function(){return view.sort},pick:function(v){view.sort=v;$('fSort').value=v;saveView();renderList()}})};
+$('pbtns').onclick=function(e){
+  var b=e.target;while(b&&b!==this&&b.tagName!=='BUTTON')b=b.parentNode;
+  if(!b||b===this)return;
+  var p=b.getAttribute('data-p');view.sp=(view.sp===p?'':p);saveView();renderSum();
+};
 $('sSortBtn').onclick=function(){openPickCfg({title:'정렬 방식',ord:false,items:function(){return selItems($('sSort'))},cur:function(){return view.sum},pick:function(v){view.sum=v;$('sSort').value=v;saveView();renderSum()}})};
 $('fEx').onchange=function(){view.ex=this.value;saveView();renderList()};
 $('fSort').onchange=function(){view.sort=this.value;saveView();renderList()};
