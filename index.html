@@ -208,6 +208,11 @@ body:not(.fit) #ibar{display:none}
 .pbtns{flex:1;display:flex;gap:6px;overflow-x:auto;min-width:0}
 .pbtns .pb{flex:1 0 auto;min-width:44px}
 .pb.on{background:var(--orange);border-color:var(--orange);color:#fff}
+/* 누적 표: 제목 한 줄, 열 너비 통일 */
+table.sumt{table-layout:fixed}
+.sumt th{white-space:nowrap;font-size:12px;padding:8px 4px}
+.sumt td{padding:9px 4px;word-break:keep-all}
+.sumt th:first-child,.sumt td:first-child{padding-left:10px}
 </style>
 </head>
 <body class="fit">
@@ -629,6 +634,7 @@ function renderSum(){
   var key=view.sp?'amt':view.sum;   /* 부위 버튼: 그 부위 종목만 기본 순서로 / 선택 버튼: 전체 종목을 고른 방식으로 */
   var so=$('sSort').options[$('sSort').selectedIndex],lbl=view.sp?view.sp:(so?so.textContent:'');
   var hl='<em class="sortlbl">'+esc(lbl)+'</em>';
+  var CG='<colgroup><col><col style="width:52px"><col style="width:58px"><col style="width:92px"><col style="width:60px"></colgroup>';   /* 부위·표 종류와 상관없이 같은 열 너비 */
   function sorter(metric){return function(a,b){
     if(key==='name')return koCmp(a,b);
     if(key==='recent')return (m[a].last<m[b].last?1:m[a].last>m[b].last?-1:0)||koCmp(a,b);
@@ -639,12 +645,12 @@ function renderSum(){
   ca.sort(sorter(function(o){return o.dist}));
   var h='',tv=0,td=0,tsv=0,tsc=0;
   if(st.length){
-    h+='<h3>근력 운동'+hl+'</h3><table><tr><th>종목</th><th>운동일</th><th>최고무게</th><th>누적 운동량(kg)</th><th>운동시간</th></tr>';
+    h+='<h3>근력 운동'+hl+'</h3><table class="sumt">'+CG+'<tr><th>종목</th><th>운동일</th><th>최고무게</th><th>누적 운동량(kg)</th><th>운동시간</th></tr>';
     st.forEach(function(n){var o=m[n];tv+=o.vol;tsv+=o.sec;h+='<tr><td>'+esc(n)+'</td><td>'+Object.keys(o.days).length+'('+o.cnt+')</td><td>'+fmt(o.max)+'</td><td><b>'+fmt(o.vol)+'</b></td><td>'+(o.sec>0?clockLong(o.sec):'-')+'</td></tr>'});
     h+='<tr><td><b>합계</b></td><td></td><td></td><td><b>'+fmt(tv)+'</b></td><td><b>'+(tsv>0?clockLong(tsv):'-')+'</b></td></tr></table>';
   }
   if(ca.length){
-    h+='<h3>유산소 운동'+hl+'</h3><table><tr><th>종목</th><th>운동일</th><th>누적 시간</th><th>누적 거리(km)</th><th>운동시간</th></tr>';
+    h+='<h3>유산소 운동'+hl+'</h3><table class="sumt">'+CG+'<tr><th>종목</th><th>운동일</th><th>누적 시간</th><th>누적 거리(km)</th><th>운동시간</th></tr>';
     ca.forEach(function(n){var o=m[n];td+=o.dist;tsc+=o.sec;h+='<tr><td>'+esc(n)+'</td><td>'+Object.keys(o.days).length+'('+o.cnt+')</td><td>'+(o.dsec>0?clockLong(o.dsec):'-')+'</td><td><b>'+fmt(o.dist)+'</b></td><td>'+(o.sec>0?clockLong(o.sec):'-')+'</td></tr>'});
     h+='<tr><td><b>합계</b></td><td></td><td></td><td><b>'+fmt(td)+'</b></td><td><b>'+(tsc>0?clockLong(tsc):'-')+'</b></td></tr></table>';
   }
