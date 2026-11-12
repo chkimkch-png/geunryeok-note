@@ -56,10 +56,15 @@ h3{margin:18px 2px 6px;font-size:15px;color:var(--navy);display:flex;justify-con
 h3 em{font-style:normal;color:var(--sub);font-weight:400;font-size:13px}
 h3 em.sortlbl{color:var(--orange);font-weight:800;font-size:14px}
 .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px}
-.card .t{display:flex;justify-content:space-between;font-weight:700}
+.card .t{display:flex;align-items:baseline;gap:8px;font-weight:700;min-width:0}
 .card .t small{color:var(--sub);font-weight:400}
 .card .d{font-size:14px;color:#444;margin-top:4px;line-height:1.5}
-.card .del{float:right;margin-left:6px}
+.card .del{float:none;margin:0}
+.card .t .nm{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .t .pt{flex:none;white-space:nowrap;font-size:13px}
+.card .t .st{flex:none;margin-left:auto;white-space:nowrap;font-size:12px}
+.card .t .st.no{color:#b42318}
+.card .acts{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
 table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;font-size:14px}
 th{background:var(--navy);color:#fff;font-weight:500;padding:9px 6px;text-align:right}
 td{padding:9px 6px;border-bottom:1px solid var(--line);text-align:right}
@@ -562,6 +567,7 @@ function partList(){
   extra.sort(koCmp);
   return a.concat(extra);
 }
+function partLabel(p){var k=pnorm(p);return !k?'':(k==='유산소'?k:k+' 운동')}   /* 화면 표시용: '가슴운동'·'가슴 운동'을 모두 '가슴 운동'으로 */
 function koCmp(a,b){return String(a).localeCompare(String(b),'ko')}
 function exCmp(a,b){var c=koCmp(a,b);return view.exo==='desc'?-c:c}
 function pkey(p){return String(p||'').replace(/\s+/g,'')}
@@ -607,9 +613,11 @@ function wd(d){return['일','월','화','수','목','금','토'][new Date(d+'T00
 function el(tag,cls,txt){var x=document.createElement(tag);if(cls)x.className=cls;if(txt!==undefined)x.textContent=txt;return x}
 function recCard(r,showDate){
   var c=el('div','card');
-  var t=el('div','t',r.ex);
-  var info=(showDate?r.date+' ('+wd(r.date)+') · ':'')+r.part+(state.url?(r.sent?' · 전송요청됨':' · 미전송'):'');
-  t.appendChild(el('small',null,info));
+  /* 첫 줄: 종목 이름 | 부위(항상 같은 간격) ........ 전송 상태(오른쪽 끝) — 줄바꿈 없음 */
+  var t=el('div','t');
+  t.appendChild(el('span','nm',r.ex));
+  t.appendChild(el('small','pt',partLabel(r.part)));
+  if(state.url)t.appendChild(el('small','st'+(r.sent?'':' no'),r.sent?'전송요청됨':'미전송'));
   c.appendChild(t);
   var txt;
   if(r.type==='유산소'||r.part==='유산소'&&!r.sets){txt='거리 '+fmt(r.dist)+'km'+(rsec(r)>0?' · '+tmKo(rsec(r)):'')}
@@ -619,13 +627,15 @@ function recCard(r,showDate){
   }
   if(r.sec>0)txt+=' · 운동시간 '+tmKo(r.sec);
   if(r.memo)txt+=' · '+r.memo;
+  if(showDate)txt=r.date+' ('+wd(r.date)+') · '+txt;
   c.appendChild(el('div','d',txt));
-  var b=el('button','danger small del','삭제');
-  b.onclick=function(){if(confirm('이 기록을 삭제할까요?\n(구글 시트에 이미 전송된 행은 시트에서 직접 지워야 합니다)')){state.rec=state.rec.filter(function(x){return x.id!==r.id});save();renderList();renderSum()}};
-  c.appendChild(b);
+  var acts=el('div','acts');
   var eb=el('button','ghost small del','수정');
   eb.onclick=function(){editRec(r)};
-  c.appendChild(eb);
+  var b=el('button','danger small del','삭제');
+  b.onclick=function(){if(confirm('이 기록을 삭제할까요?\n(구글 시트에 이미 전송된 행은 시트에서 직접 지워야 합니다)')){state.rec=state.rec.filter(function(x){return x.id!==r.id});save();renderList();renderSum()}};
+  acts.appendChild(eb);acts.appendChild(b);
+  c.appendChild(acts);
   return c;
 }
 function renderList(){
