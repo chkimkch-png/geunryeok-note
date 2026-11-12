@@ -59,7 +59,7 @@ h3 em.sortlbl{color:var(--orange);font-weight:800;font-size:14px}
 .card .t{display:flex;justify-content:space-between;font-weight:700}
 .card .t small{color:var(--sub);font-weight:400}
 .card .d{font-size:14px;color:#444;margin-top:4px;line-height:1.5}
-.card .del{float:right}
+.card .del{float:right;margin-left:6px}
 table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;font-size:14px}
 th{background:var(--navy);color:#fff;font-weight:500;padding:9px 6px;text-align:right}
 td{padding:9px 6px;border-bottom:1px solid var(--line);text-align:right}
@@ -213,6 +213,15 @@ table.sumt{table-layout:fixed}
 .sumt th{white-space:nowrap;font-size:12px;padding:8px 4px}
 .sumt td{padding:9px 4px;word-break:keep-all}
 .sumt th:first-child,.sumt td:first-child{padding-left:10px}
+/* 시작 직후 3초간 깜빡이는 안내 */
+.cdpop{position:relative}
+.cdpop.hint{justify-content:flex-start;padding-top:4px}
+.cdhint{position:absolute;left:8px;right:8px;bottom:8px;padding:8px 6px;border:2px solid #C62828;border-radius:10px;background:#FFF200;color:#C62828;font-size:20px;font-weight:900;text-align:center;line-height:1.2;animation:cdblink .7s steps(1,end) infinite}
+.cdhint[hidden]{display:none}
+@keyframes cdblink{0%{opacity:1}50%{opacity:.1}}
+/* 수정 중 표시 */
+.editing #btnSave{background:#C25400}
+.editing #tab-in #live{background:#FFD8A8;color:#7A3B00;font-weight:700;cursor:pointer}
 </style>
 </head>
 <body class="fit">
@@ -228,7 +237,7 @@ table.sumt{table-layout:fixed}
 <main>
 
 <section class="tab active" id="tab-in">
-  <div id="cdPop" class="cdpop" hidden><div class="cdl">남은 시간</div><div id="cdNum">00:00</div></div>
+  <div id="cdPop" class="cdpop" hidden><div class="cdl">남은 시간</div><div id="cdNum">00:00</div><div id="cdHint" class="cdhint" hidden>카운터를 변경했나요?</div></div>
   <div class="f d1"><label for="date">날짜</label><input type="date" id="date"></div>
   <button type="button" id="btnCnt" aria-label="세트 카운터">0</button>
 
@@ -435,13 +444,33 @@ function readForm(){
   for(var i=0;i<5;i++){reps.push(num($('r'+i).value));w.push(num($('w'+i).value))}
   return{base:base,reps:reps,w:w};
 }
+var editId=null;   /* 수정 중인 기록의 id (없으면 새 기록 입력) */
 function live(){
-  var e=findEx($('ex').value),box=$('live');
-  if(!e){box.textContent='';return}
-  if(e.t==='유산소'){box.textContent='입력 거리: '+fmt(num($('dist').value))+' km'+(readDur()>0?' · 시간 '+tmKo(readDur()):'');return}
-  var f=readForm(),c=calc(f.reps,f.w,f.base);
-  box.textContent='수행 세트 '+c.sets+'개 · 운동량 '+fmt(c.vol)+' kg';
+  var e=findEx($('ex').value),box=$('live'),t='';
+  if(editId){box.textContent='✎ 수정 중 · 눌러서 취소';return}
+  if(e){
+    if(e.t==='유산소')t='입력 거리: '+fmt(num($('dist').value))+' km'+(readDur()>0?' · 시간 '+tmKo(readDur()):'');
+    else{var f=readForm(),c=calc(f.reps,f.w,f.base);t='수행 세트 '+c.sets+'개 · 운동량 '+fmt(c.vol)+' kg'}
+  }
+  box.textContent=t;
 }
+function renderEditUI(){
+  $('btnSave').textContent=editId?'수정 저장':'저장';
+  document.body.classList.toggle('editing',!!editId);
+  live();
+}
+function editRec(r){
+  if(!findEx(r.ex)){toast('종목 "'+r.ex+'"이(가) 종목 목록에 없어 수정할 수 없습니다. 설정 탭에서 같은 이름으로 추가하세요');return}
+  document.querySelector('nav button[data-t="in"]').onclick();
+  $('ex').value=r.ex;onEx();
+  $('date').value=r.date;$('memo').value=r.memo||'';
+  $('base').value=r.base||'';
+  for(var i=0;i<5;i++){$('r'+i).value=r.reps[i]||'';$('w'+i).value=r.w[i]||''}
+  $('dist').value=r.dist||'';setDur(rsec(r));
+  editId=r.id;renderEditUI();
+  toast('수정할 내용을 고치고 "수정 저장"을 누르세요');
+}
+function cancelEdit(){editId=null;clearForm();renderEditUI();toast('수정을 취소했습니다')}
 function rsec(r){return r.dsec>0?r.dsec:Math.round((r.min||0)*60)}   /* 유산소 시간(초): 새 기록은 dsec, 예전 기록은 분(min)에서 환산 */
 function readDur(){var h=Math.floor(num($('dh').value)),m=Math.floor(num($('dm').value)),x=Math.floor(num($('ds').value));return Math.max(0,h*3600+m*60+x)}
 function setDur(sec){$('dh').value=sec>=3600?Math.floor(sec/3600):'';$('dm').value=sec>=60?Math.floor(sec%3600/60):'';$('ds').value=sec>0?sec%60:''}
@@ -490,6 +519,19 @@ function saveRec(){
     var f=readForm();rec.base=f.base;rec.reps=f.reps;rec.w=f.w;
     var c=calc(f.reps,f.w,f.base);rec.sets=c.sets;rec.vol=c.vol;
     if(c.sets===0){toast('횟수를 한 세트 이상 입력하세요');return}
+  }
+  if(editId){
+    var idx=-1;state.rec.forEach(function(x,i){if(x.id===editId)idx=i});
+    if(idx<0){toast('수정할 기록을 찾을 수 없습니다');editId=null;renderEditUI();return}
+    var old=state.rec[idx];
+    rec.id=old.id;rec.ts=old.ts;if(old.sec>0)rec.sec=old.sec;
+    state.rec[idx]=rec;
+    if(!save()){state.rec[idx]=old;return}
+    editId=null;clearForm();renderEditUI();
+    toast(e.n+' 기록을 수정했습니다');renderList();renderSum();renderChk();
+    send([rec],true,true);
+    document.querySelector('nav button[data-t="list"]').onclick();
+    return;
   }
   var gen=state.pend||0,bound=(state.pendMap&&state.pendMap[e.n])||0,used=gen+bound;
   if(used>0)rec.sec=used;
@@ -581,6 +623,9 @@ function recCard(r,showDate){
   var b=el('button','danger small del','삭제');
   b.onclick=function(){if(confirm('이 기록을 삭제할까요?\n(구글 시트에 이미 전송된 행은 시트에서 직접 지워야 합니다)')){state.rec=state.rec.filter(function(x){return x.id!==r.id});save();renderList();renderSum()}};
   c.appendChild(b);
+  var eb=el('button','ghost small del','수정');
+  eb.onclick=function(){editRec(r)};
+  c.appendChild(eb);
   return c;
 }
 function renderList(){
@@ -931,6 +976,7 @@ $('ex').onchange=onEx;
 ['base','dist','dh','dm','ds'].forEach(function(i){$(i).oninput=live});
 for(var j=0;j<5;j++){$('r'+j).oninput=live;$('w'+j).oninput=live}
 $('btnLast').onclick=fillLast;
+$('live').onclick=function(){if(editId)cancelEdit()};
 $('btnSave').onclick=saveRec;
 function addEx(n,p,t,after){
   n=n.trim();p=p.trim();
@@ -1065,7 +1111,7 @@ function renderCount(){
   var rem=Math.max(0,Math.ceil((nextAt-Date.now())/1000));
   $('istate').textContent='남은 '+clock(rem);
   $('cdNum').textContent=pad2(Math.floor(rem/60))+':'+pad2(rem%60);
-  $('cdPop').className='cdpop'+(rem<=3?' warn':'');
+  $('cdPop').className='cdpop'+(rem<=3?' warn':'')+(hintOn?' hint':'');
   renderAcc();
 }
 var preIdx=0;   /* 이번 회차에서 이미 낸 예비 비프음 횟수 (종료 3·2·1초 전, 소리 70%) */
@@ -1087,18 +1133,25 @@ function tick(){
   }
   renderCount();
 }
+var hintOn=false,hintTmr=null;
+function hideCounterHint(){hintOn=false;clearTimeout(hintTmr);$('cdHint').hidden=true;$('cdPop').classList.remove('hint')}
+function showCounterHint(){   /* 시작을 누르면 3초간 깜빡이다 사라짐 (유산소는 세트 카운터와 무관해 제외) */
+  if(document.body.classList.contains('cd'))return;
+  hintOn=true;$('cdHint').hidden=false;$('cdPop').classList.add('hint');
+  clearTimeout(hintTmr);hintTmr=setTimeout(hideCounterHint,3000);
+}
 function startIv(){
   getAudio();
   running=true;runStart=Date.now();lastElapsed=0;nextAt=runStart+selSec*1000;preIdx=0;
   if(tmr)clearInterval(tmr);
   tmr=setInterval(tick,200);
-  lockScreen();renderIv();
+  lockScreen();renderIv();showCounterHint();
 }
 function stopIv(){
   lastElapsed=Date.now()-runStart;
   running=false;
   if(tmr){clearInterval(tmr);tmr=null}
-  unlockScreen();renderIv();   // 선택한 시간(selSec)은 그대로 유지
+  hideCounterHint();unlockScreen();renderIv();   // 선택한 시간(selSec)은 그대로 유지
 }
 function setIv(sec){
   selSec=sec;saveIv();
