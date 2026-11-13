@@ -1145,8 +1145,10 @@ function tick(){
 }
 var hintOn=false,hintTmr=null;
 function hideCounterHint(){hintOn=false;clearTimeout(hintTmr);$('cdHint').hidden=true;$('cdPop').classList.remove('hint')}
-function showCounterHint(){   /* 시작을 누르면 3초간 깜빡이다 사라짐 (유산소는 세트 카운터와 무관해 제외) */
+var HINT_MIN_SEC=30;   /* 반복시간이 이 값(초) 이상일 때만 안내 문구 표시 */
+function showCounterHint(){   /* 반복시간 30초 이상일 때 3초간 깜빡이다 사라짐 (유산소는 세트 카운터와 무관해 제외) */
   if(document.body.classList.contains('cd'))return;
+  if(selSec<HINT_MIN_SEC){hideCounterHint();return}
   hintOn=true;$('cdHint').hidden=false;$('cdPop').classList.add('hint');
   clearTimeout(hintTmr);hintTmr=setTimeout(hideCounterHint,3000);
 }
@@ -1167,6 +1169,7 @@ function setIv(sec){
   selSec=sec;saveIv();
   if(running){nextAt=Date.now()+selSec*1000;preIdx=0}  // 실행 중 변경하면 새 시간으로 다시 시작
   renderIv();
+  if(running)showCounterHint();   // 실행 중 30초 이상으로 바꾸면 3초간 깜빡임, 30초 미만이면 숨김
 }
 
 function openSheet(){
