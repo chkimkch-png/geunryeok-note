@@ -147,7 +147,9 @@ body.fit main{flex:1 1 auto;min-height:0;width:100%;max-width:560px;align-self:c
 #tab-in .d1{grid-column:1;grid-row:1;align-self:end}
 #btnCnt{grid-column:2;grid-row:1;height:54px;width:100%;min-width:0;margin:0;padding:0 6px;font-size:40px;line-height:1}
 #tab-in .d2{grid-column:1;grid-row:2;align-self:end}
-#tab-in #btnLast{grid-column:2;grid-row:2/4;height:100%;margin:0;padding:0 4px;font-size:14px;line-height:1.3}
+#tab-in .side2{grid-column:2;grid-row:2/4;display:flex;flex-direction:column;gap:6px;min-height:0}
+#tab-in .side2 button{flex:1 1 0;min-height:0;height:auto;margin:0;padding:0 4px;font-size:14px;line-height:1.3}
+#tab-in #btnNote.has{background:#FFE3C2;color:#7A3B00}
 #tab-in .lr{display:flex;justify-content:space-between;align-items:flex-end;gap:6px;height:18px;margin-bottom:3px}
 #tab-in .lr label{margin:0;flex:none}
 #tab-in .lr .meta{margin:0;font-size:12px;line-height:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
@@ -224,6 +226,19 @@ table.sumt{table-layout:fixed}
 .cdhint{position:absolute;left:8px;right:8px;bottom:8px;padding:8px 6px;border:2px solid #C62828;border-radius:10px;background:#FFF200;color:#C62828;font-size:20px;font-weight:900;text-align:center;line-height:1.2;animation:cdblink .7s steps(1,end) infinite}
 .cdhint[hidden]{display:none}
 @keyframes cdblink{0%{opacity:1}50%{opacity:.1}}
+/* 메모(그날의 기록·사진) 창 */
+#noteSheet .sheet{max-height:92vh;overflow-y:auto}
+#noteSheet textarea{width:100%;min-height:110px;padding:10px;font-size:16px;border:1px solid var(--line);border-radius:10px;font-family:inherit;resize:vertical;box-sizing:border-box}
+#noteSheet .nrow{display:flex;gap:8px}
+#noteSheet .nrow button{margin-top:8px;padding:11px 4px;font-size:15px}
+#noteSheet .nph{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}
+#noteSheet .nph .th{position:relative;aspect-ratio:1/1;border-radius:10px;overflow:hidden;background:#e9ecf3}
+#noteSheet .nph img{width:100%;height:100%;object-fit:cover;display:block}
+#noteSheet .nph .x{position:absolute;top:4px;right:4px;width:28px;height:28px;margin:0;padding:0;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:16px;line-height:28px}
+#noteSheet .ndate{color:var(--sub);font-size:14px;margin:0 2px 8px}
+#photoView{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center}
+#photoView[hidden]{display:none}
+#photoView img{max-width:100%;max-height:100%}
 /* 수정 중 표시 */
 .editing #btnSave{background:#C25400}
 .editing #tab-in #live{background:#FFD8A8;color:#7A3B00;font-weight:700;cursor:pointer}
@@ -250,7 +265,7 @@ table.sumt{table-layout:fixed}
     <div class="lr"><label for="exBtn">운동 종목</label><span class="meta" id="meta"></span></div>
     <button type="button" id="exBtn" class="selbtn" aria-haspopup="dialog"><span id="exBtnTxt"></span><i>▾</i></button>
   </div>
-  <button class="ghost" id="btnLast">지난번 기록<br>불러오기</button>
+  <div class="side2"><button class="ghost" id="btnLast">지난번 기록<br>불러오기</button><button class="ghost" id="btnNote" type="button">📝 메모</button></div>
   <select id="ex" hidden></select>
   <datalist id="partList"></datalist>
 
@@ -330,7 +345,7 @@ table.sumt{table-layout:fixed}
   <button class="ghost" id="btnCsv">CSV로 내보내기</button>
   <button class="ghost" id="btnImp">CSV 가져오기</button>
   <input type="file" id="file" accept=".csv,text/csv" hidden>
-  <div class="note">기록은 이 휴대폰의 브라우저에 저장됩니다. 브라우저 데이터를 지우면 사라지므로 가끔 CSV로 백업하세요.</div>
+  <div class="note">기록은 이 휴대폰의 브라우저에 저장됩니다. 브라우저 데이터를 지우면 사라지므로 가끔 CSV로 백업하세요. (그날의 메모·사진은 CSV에 포함되지 않고 이 휴대폰에만 저장됩니다)</div>
   <button class="danger" id="btnClear">전체 기록 삭제</button>
 </section>
 
@@ -363,6 +378,24 @@ table.sumt{table-layout:fixed}
     <div class="pkl" id="pkList"></div>
   </div>
 </div>
+<div id="noteSheet" class="ov" hidden>
+  <div class="sheet" role="dialog" aria-label="그날의 메모">
+    <h3>그날의 메모</h3>
+    <div class="ndate" id="noteDate"></div>
+    <textarea id="noteText" placeholder="컨디션, 운동 느낌, 특이사항 등"></textarea>
+    <div class="nrow">
+      <button class="ghost" id="noteCam" type="button">📷 사진 찍기</button>
+      <button class="ghost" id="noteGal" type="button">🖼 앨범에서 선택</button>
+    </div>
+    <div class="nph" id="notePh"></div>
+    <input type="file" id="fileCam" accept="image/*" capture="environment" hidden>
+    <input type="file" id="fileGal" accept="image/*" multiple hidden>
+    <button class="primary" id="noteSave" type="button">저장</button>
+    <button class="danger" id="noteDel" type="button" hidden>이 날 메모 삭제</button>
+    <button class="ghost" id="noteClose" type="button">닫기</button>
+  </div>
+</div>
+<div id="photoView" hidden><img alt="확대한 사진"></div>
 <div id="toast"></div>
 
 <script>
@@ -468,7 +501,7 @@ function editRec(r){
   if(!findEx(r.ex)){toast('종목 "'+r.ex+'"이(가) 종목 목록에 없어 수정할 수 없습니다. 설정 탭에서 같은 이름으로 추가하세요');return}
   document.querySelector('nav button[data-t="in"]').onclick();
   $('ex').value=r.ex;onEx();
-  $('date').value=r.date;$('memo').value=r.memo||'';
+  $('date').value=r.date;$('memo').value=r.memo||'';if(window.__noteBtn)window.__noteBtn();
   $('base').value=r.base||'';
   for(var i=0;i<5;i++){$('r'+i).value=r.reps[i]||'';$('w'+i).value=r.w[i]||''}
   $('dist').value=r.dist||'';setDur(rsec(r));
@@ -1254,10 +1287,103 @@ function setCnt(n){cnt=n;try{localStorage.setItem(CNTKEY,String(cnt))}catch(e){}
   });
   b.addEventListener('contextmenu',function(e){e.preventDefault()});
 })();
+
+/* ===== 그날의 메모 + 사진 (이 휴대폰의 IndexedDB에 저장, 날짜별 1건) ===== */
+var NDB=null,noteDates={},nText='',nPhotos=[],nDirty=false,nUrls=[];
+function noteOpenDB(cb){
+  if(NDB){cb(NDB);return}
+  try{
+    var rq=indexedDB.open('geunryeok-note-db',1);
+    rq.onupgradeneeded=function(){rq.result.createObjectStore('notes',{keyPath:'date'})};
+    rq.onsuccess=function(){NDB=rq.result;cb(NDB)};
+    rq.onerror=function(){cb(null)};
+  }catch(e){cb(null)}
+}
+function noteGet(d,cb){noteOpenDB(function(db){if(!db){cb(null);return}try{var r=db.transaction('notes').objectStore('notes').get(d);r.onsuccess=function(){cb(r.result||null)};r.onerror=function(){cb(null)}}catch(e){cb(null)}})}
+function notePut(rec,cb){noteOpenDB(function(db){if(!db){cb(false);return}try{var t=db.transaction('notes','readwrite');t.objectStore('notes').put(rec);t.oncomplete=function(){cb(true)};t.onerror=function(){cb(false)};t.onabort=function(){cb(false)}}catch(e){cb(false)}})}
+function noteRemove(d,cb){noteOpenDB(function(db){if(!db){cb(false);return}try{var t=db.transaction('notes','readwrite');t.objectStore('notes').delete(d);t.oncomplete=function(){cb(true)};t.onerror=function(){cb(false)};t.onabort=function(){cb(false)}}catch(e){cb(false)}})}
+function noteLoadKeys(){noteOpenDB(function(db){if(!db)return;try{var r=db.transaction('notes').objectStore('notes').getAllKeys();r.onsuccess=function(){noteDates={};(r.result||[]).forEach(function(k){noteDates[k]=1});noteBtn()}}catch(e){}})}
+function noteBtn(){var b=$('btnNote');if(!b)return;var has=!!noteDates[$('date').value];b.className='ghost'+(has?' has':'');b.textContent=has?'📝 메모 ●':'📝 메모'}
+window.__noteBtn=noteBtn;
+function noteDateLabel(d){var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(d||'');return m?m[1]+'.'+m[2]+'.'+m[3]:(d||'')}
+function noteRevoke(){nUrls.forEach(function(u){try{URL.revokeObjectURL(u)}catch(e){}});nUrls=[]}
+function noteRenderPh(){
+  noteRevoke();var box=$('notePh');box.innerHTML='';
+  nPhotos.forEach(function(bl,i){
+    var u=URL.createObjectURL(bl);nUrls.push(u);
+    var w=document.createElement('div');w.className='th';
+    var im=document.createElement('img');im.src=u;im.alt='메모 사진 '+(i+1);
+    im.onclick=function(){$('photoView').querySelector('img').src=u;$('photoView').hidden=false};
+    var x=document.createElement('button');x.type='button';x.className='x';x.textContent='✕';x.setAttribute('aria-label','사진 삭제');
+    x.onclick=function(){if(confirm('이 사진을 지울까요? (저장을 눌러야 반영됩니다)')){nPhotos.splice(i,1);nDirty=true;noteRenderPh()}};
+    w.appendChild(im);w.appendChild(x);box.appendChild(w);
+  });
+}
+function noteShrink(file,cb){   /* 긴 변 1280px, JPEG 80%로 줄여서 저장 공간 절약 */
+  var u=URL.createObjectURL(file),im=new Image();
+  im.onload=function(){
+    try{
+      var w=im.naturalWidth,h=im.naturalHeight,k=Math.min(1,1280/Math.max(w,h));
+      var c=document.createElement('canvas');c.width=Math.round(w*k);c.height=Math.round(h*k);
+      c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+      c.toBlob(function(b){URL.revokeObjectURL(u);cb(b||file)},'image/jpeg',0.8);
+    }catch(e){URL.revokeObjectURL(u);cb(file)}
+  };
+  im.onerror=function(){URL.revokeObjectURL(u);cb(null)};
+  im.src=u;
+}
+function noteAddFiles(fl){
+  var arr=Array.prototype.slice.call(fl||[]);if(!arr.length)return;
+  var left=arr.length;
+  arr.forEach(function(f){noteShrink(f,function(b){
+    if(b){nPhotos.push(b);nDirty=true}else toast('사진을 읽지 못했습니다');
+    if(--left===0)noteRenderPh();
+  })});
+}
+function noteOpen(){
+  var d=$('date').value;if(!d){toast('날짜를 먼저 선택하세요');return}
+  $('noteDate').textContent=noteDateLabel(d);
+  noteGet(d,function(r){
+    nText=r?r.text||'':'';nPhotos=r?(r.photos||[]).slice():[];nDirty=false;
+    $('noteText').value=nText;$('noteDel').hidden=!r;
+    noteRenderPh();$('noteSheet').hidden=false;
+  });
+}
+function noteClose(force){
+  if(!force&&($('noteText').value!==nText||nDirty)&&!confirm('저장하지 않고 닫을까요?'))return;
+  $('noteSheet').hidden=true;noteRevoke();$('notePh').innerHTML='';
+}
+$('btnNote').onclick=noteOpen;
+$('noteClose').onclick=function(){noteClose(false)};
+$('noteSheet').onclick=function(e){if(e.target===this)noteClose(false)};
+$('noteCam').onclick=function(){$('fileCam').click()};
+$('noteGal').onclick=function(){$('fileGal').click()};
+$('fileCam').onchange=function(){noteAddFiles(this.files);this.value=''};
+$('fileGal').onchange=function(){noteAddFiles(this.files);this.value=''};
+$('photoView').onclick=function(){this.hidden=true};
+$('date').addEventListener('change',noteBtn);
+$('noteSave').onclick=function(){
+  var d=$('date').value,t=$('noteText').value.trim();
+  if(!t&&!nPhotos.length){   /* 비어 있으면 그날 메모를 지움 */
+    if(!noteDates[d]){toast('저장할 내용이 없습니다');return}
+    noteRemove(d,function(ok){if(ok){delete noteDates[d];noteBtn();noteClose(true);toast('메모를 지웠습니다')}else toast('저장하지 못했습니다')});
+    return;
+  }
+  notePut({date:d,text:t,photos:nPhotos,ts:Date.now()},function(ok){
+    if(!ok){toast('저장하지 못했습니다. 저장 공간을 확인하세요');return}
+    noteDates[d]=1;noteBtn();noteClose(true);toast(noteDateLabel(d)+' 메모를 저장했습니다');
+    try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
+  });
+};
+$('noteDel').onclick=function(){
+  var d=$('date').value;
+  if(!confirm(noteDateLabel(d)+' 메모와 사진을 모두 삭제합니다. 되돌릴 수 없습니다.'))return;
+  noteRemove(d,function(ok){if(ok){delete noteDates[d];noteBtn();noteClose(true);toast('메모를 삭제했습니다')}else toast('삭제하지 못했습니다')});
+};
 function setNavH(){var n=document.querySelector('nav'),t=$('top'),st=document.documentElement.style;if(n)st.setProperty('--navH',n.offsetHeight+'px');if(t)st.setProperty('--topH',t.offsetHeight+'px')}
 setNavH();window.addEventListener('resize',setNavH);window.addEventListener('orientationchange',setNavH);window.addEventListener('load',setNavH);
 load();loadView();ordLabel();refreshParts();renderCnt();
-$('date').value=today();
+$('date').value=today();noteLoadKeys();
 renderEx();renderList();renderSum();renderSet();
 try{var st=sessionStorage.getItem('geunryeok_tab');if(st&&st!=='in'){var bb=document.querySelector('nav button[data-t="'+st+'"]');if(bb)bb.onclick()}}catch(e){}
 })();
