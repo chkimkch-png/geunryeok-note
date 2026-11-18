@@ -165,10 +165,11 @@ body.fit main{flex:1 1 auto;min-height:0;width:100%;max-width:560px;align-self:c
 #tab-in .sr b{font-size:14px}
 #tab-in .memo{grid-column:1/-1;grid-row:5}
 body.cd #tab-in .memo{grid-row:4;align-self:start}
-#tab-in .bot{grid-column:1/-1;grid-row:6;display:grid;grid-template-columns:minmax(0,1fr) 108px;gap:8px;align-items:stretch}
+#tab-in .bot{grid-column:1/-1;grid-row:6;display:grid;grid-template-columns:minmax(0,1fr) 64px 108px;gap:8px;align-items:stretch}
 body.cd #tab-in .bot{grid-row:5}
 #tab-in #live{margin:0;padding:6px 10px;font-size:13px;line-height:1.25;display:flex;align-items:center}
 #tab-in #btnSave{margin:0;height:46px;padding:0}
+#tab-in #btnFind{margin:0;height:46px;padding:0 4px;font-size:14px;line-height:1.2;white-space:nowrap;background:#D9DFEE;color:#14213D}
 /* ===== 스크롤해도 상단 고정 (기록·누적·점검·설정) ===== */
 .stk{position:sticky;top:var(--topH,120px);z-index:4;background:var(--bg);margin:0 -14px;padding:4px 14px 4px;box-shadow:0 3px 4px -3px rgba(0,0,0,.18)}
 #tab-set>h3:first-child{position:sticky;top:var(--topH,120px);z-index:4;background:var(--bg);margin:0 -14px;padding:8px 14px 6px;box-shadow:0 3px 4px -3px rgba(0,0,0,.18);align-items:center}
@@ -303,7 +304,7 @@ table.sumt{table-layout:fixed}
   </div>
 
   <div class="f memo"><label for="memo">비고</label><input id="memo" type="text" placeholder="컨디션, 메모 등"></div>
-  <div class="bot"><div id="live"></div><button class="primary" id="btnSave">저장</button></div>
+  <div class="bot"><div id="live"></div><button class="ghost" id="btnFind" type="button" aria-label="운동·기록 검색">🔍<br>검색</button><button class="primary" id="btnSave">저장</button></div>
 </section>
 
 <section class="tab" id="tab-list">
@@ -1472,6 +1473,7 @@ function nsRender(){
 function nsSetScope(sc){nsScope=sc;Array.prototype.forEach.call($('nsScope').children,function(x){x.className=x.getAttribute('data-s')===sc?'on':''})}
 function nsOpen(){noteAll(function(l){nsNotes=l;$('nsQ').value='';nsSetScope('all');nsRender();$('noteSearch').hidden=false;$('nsQ').focus()})}
 $('noteFind').onclick=function(){noteClose(false);if($('noteSheet').hidden)nsOpen()};
+$('btnFind').onclick=function(){nsOpen()};
 $('nsQ').oninput=nsRender;
 $('nsScope').onclick=function(e){var b=e.target.closest?e.target.closest('button'):null;if(!b)return;nsSetScope(b.getAttribute('data-s'));nsRender()};
 $('nsClose').onclick=function(){$('noteSearch').hidden=true};
