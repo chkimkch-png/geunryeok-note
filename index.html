@@ -228,7 +228,7 @@ table.sumt{table-layout:fixed}
 .cdhint{position:absolute;left:8px;right:8px;bottom:8px;padding:8px 6px;border:2px solid #C62828;border-radius:10px;background:#FFF200;color:#C62828;font-size:20px;font-weight:900;text-align:center;line-height:1.2;animation:cdblink .7s steps(1,end) infinite}
 .cdhint[hidden]{display:none}
 @keyframes cdblink{0%{opacity:1}50%{opacity:.1}}
-/* 메모(그날의 기록·사진) 창 */
+/* 오늘의 기록(글·사진) 창 */
 #noteSheet .sheet{max-height:92vh;overflow-y:auto}
 #noteSheet textarea{width:100%;min-height:110px;padding:10px;font-size:16px;border:1px solid var(--line);border-radius:10px;font-family:inherit;resize:vertical;box-sizing:border-box}
 #noteSheet .nrow{display:flex;gap:8px}
@@ -246,6 +246,15 @@ table.sumt{table-layout:fixed}
 #nsList .nsr i{font-style:normal;color:var(--sub);font-size:13px;margin-left:8px}
 #nsList .nsr p{margin:4px 0 0;font-size:14px;line-height:1.4;word-break:break-all}
 #nsList mark{background:#FFF200;color:inherit}
+#noteSearch .nsc{display:flex;gap:6px;margin-top:8px}
+#noteSearch .nsc button{margin:0;padding:8px 4px;font-size:14px;background:#e9ecf3;color:var(--navy)}
+#noteSearch .nsc button.on{background:var(--navy);color:#fff}
+#nsList .tg{font-style:normal;font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px;margin-right:6px}
+#nsList .nw .tg{background:#AEBBD6;color:#14213D}
+#nsList .nn .tg{background:#FFB874;color:#5A2A00}
+#nsList .nn{cursor:pointer}
+#nsList .nm2{font-weight:700;margin-left:8px}
+#nsList .nsr small{color:var(--sub);margin-left:6px;font-size:12px}
 #photoView{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center}
 #photoView[hidden]{display:none}
 #photoView img{max-width:100%;max-height:100%}
@@ -275,7 +284,7 @@ table.sumt{table-layout:fixed}
     <div class="lr"><label for="exBtn">운동 종목</label><span class="meta" id="meta"></span></div>
     <button type="button" id="exBtn" class="selbtn" aria-haspopup="dialog"><span id="exBtnTxt"></span><i>▾</i></button>
   </div>
-  <div class="side2"><button class="ghost" id="btnLast">지난번 기록<br>불러오기</button><button class="ghost" id="btnNote" type="button">📝 기록</button></div>
+  <div class="side2"><button class="ghost" id="btnLast">지난번 기록<br>불러오기</button><button class="ghost" id="btnNote" type="button">기록</button></div>
   <select id="ex" hidden></select>
   <datalist id="partList"></datalist>
 
@@ -355,7 +364,7 @@ table.sumt{table-layout:fixed}
   <button class="ghost" id="btnCsv">CSV로 내보내기</button>
   <button class="ghost" id="btnImp">CSV 가져오기</button>
   <input type="file" id="file" accept=".csv,text/csv" hidden>
-  <div class="note">기록은 이 휴대폰의 브라우저에 저장됩니다. 브라우저 데이터를 지우면 사라지므로 가끔 CSV로 백업하세요. (그날의 기록(글·사진)은 CSV에 포함되지 않고 이 휴대폰에만 저장됩니다)</div>
+  <div class="note">기록은 이 휴대폰의 브라우저에 저장됩니다. 브라우저 데이터를 지우면 사라지므로 가끔 CSV로 백업하세요. (오늘의 기록(글·사진)은 CSV에 포함되지 않고 이 휴대폰에만 저장됩니다)</div>
   <button class="danger" id="btnClear">전체 기록 삭제</button>
 </section>
 
@@ -389,10 +398,10 @@ table.sumt{table-layout:fixed}
   </div>
 </div>
 <div id="noteSheet" class="ov" hidden>
-  <div class="sheet" role="dialog" aria-label="그날의 기록">
-    <h3>그날의 기록</h3>
+  <div class="sheet" role="dialog" aria-label="오늘의 기록">
+    <h3>오늘의 기록</h3>
     <div class="ndate" id="noteDate"></div>
-    <button class="ghost" id="noteFind" type="button" style="margin:0 0 8px;padding:10px">🔍 저장된 기록 검색</button>
+    <button class="ghost" id="noteFind" type="button" style="margin:0 0 8px;padding:10px">🔍 운동·기록 검색</button>
     <textarea id="noteText" placeholder="컨디션, 운동 느낌, 특이사항 등"></textarea>
     <div class="nrow">
       <button class="ghost" id="noteCam" type="button">📷 사진 찍기</button>
@@ -402,14 +411,15 @@ table.sumt{table-layout:fixed}
     <input type="file" id="fileCam" accept="image/*" capture="environment" hidden>
     <input type="file" id="fileGal" accept="image/*" multiple hidden>
     <button class="primary" id="noteSave" type="button">저장</button>
-    <button class="danger" id="noteDel" type="button" hidden>이 날 기록 삭제</button>
+    <button class="danger" id="noteDel" type="button" hidden>기록 삭제</button>
     <button class="ghost" id="noteClose" type="button">닫기</button>
   </div>
 </div>
 <div id="noteSearch" class="ov" hidden>
-  <div class="sheet" role="dialog" aria-label="기록 검색">
-    <h3>기록 검색</h3>
-    <input type="search" id="nsQ" placeholder="검색어 (예: 어깨, 컨디션, 2026.11)" autocomplete="off">
+  <div class="sheet" role="dialog" aria-label="운동·기록 검색">
+    <h3>운동·기록 검색</h3>
+    <input type="search" id="nsQ" placeholder="검색어 (예: 벤치프레스, 어깨, 컨디션)" autocomplete="off">
+    <div class="nsc" id="nsScope"><button type="button" data-s="all" class="on">전체</button><button type="button" data-s="work">운동</button><button type="button" data-s="note">기록</button></div>
     <div class="ndate" id="nsCount" style="margin-top:8px"></div>
     <div id="nsList"></div>
     <button class="ghost" id="nsClose" type="button">닫기</button>
@@ -1323,7 +1333,7 @@ function noteGet(d,cb){noteOpenDB(function(db){if(!db){cb(null);return}try{var r
 function notePut(rec,cb){noteOpenDB(function(db){if(!db){cb(false);return}try{var t=db.transaction('notes','readwrite');t.objectStore('notes').put(rec);t.oncomplete=function(){cb(true)};t.onerror=function(){cb(false)};t.onabort=function(){cb(false)}}catch(e){cb(false)}})}
 function noteRemove(d,cb){noteOpenDB(function(db){if(!db){cb(false);return}try{var t=db.transaction('notes','readwrite');t.objectStore('notes').delete(d);t.oncomplete=function(){cb(true)};t.onerror=function(){cb(false)};t.onabort=function(){cb(false)}}catch(e){cb(false)}})}
 function noteLoadKeys(){noteOpenDB(function(db){if(!db)return;try{var r=db.transaction('notes').objectStore('notes').getAllKeys();r.onsuccess=function(){noteDates={};(r.result||[]).forEach(function(k){noteDates[k]=1});noteBtn()}}catch(e){}})}
-function noteBtn(){var b=$('btnNote');if(!b)return;var has=!!noteDates[$('date').value];b.className='ghost'+(has?' has':'');b.textContent='📝 기록';if(has){var q=document.createElement('span');q.className='nsq';q.setAttribute('aria-label','저장된 기록 있음');b.appendChild(q)}}
+function noteBtn(){var b=$('btnNote');if(!b)return;var has=!!noteDates[$('date').value];b.className='ghost'+(has?' has':'');b.textContent='기록';if(has){var q=document.createElement('span');q.className='nsq';q.setAttribute('aria-label','저장된 기록 있음');b.appendChild(q)}}
 window.__noteBtn=noteBtn;
 function noteDateLabel(d){var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(d||'');return m?m[1]+'.'+m[2]+'.'+m[3]:(d||'')}
 function noteRevoke(){nUrls.forEach(function(u){try{URL.revokeObjectURL(u)}catch(e){}});nUrls=[]}
@@ -1387,49 +1397,83 @@ $('noteSave').onclick=function(){
   var d=nDate,t=$('noteText').value.trim();
   if(!t&&!nPhotos.length){   /* 비어 있으면 그날 메모를 지움 */
     if(!noteDates[d]){toast('저장할 내용이 없습니다');return}
-    noteRemove(d,function(ok){if(ok){delete noteDates[d];noteBtn();noteClose(true);toast('그날 기록을 지웠습니다')}else toast('저장하지 못했습니다')});
+    noteRemove(d,function(ok){if(ok){delete noteDates[d];noteBtn();noteClose(true);toast('기록을 지웠습니다')}else toast('저장하지 못했습니다')});
     return;
   }
   notePut({date:d,text:t,photos:nPhotos,ts:Date.now()},function(ok){
     if(!ok){toast('저장하지 못했습니다. 저장 공간을 확인하세요');return}
-    noteDates[d]=1;noteBtn();noteClose(true);toast(noteDateLabel(d)+' 그날 기록을 저장했습니다');
+    noteDates[d]=1;noteBtn();noteClose(true);toast(noteDateLabel(d)+' 기록을 저장했습니다');
     try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
   });
 };
 $('noteDel').onclick=function(){
   var d=nDate;
-  if(!confirm(noteDateLabel(d)+' 그날 기록(글·사진)을 모두 삭제합니다. 되돌릴 수 없습니다.'))return;
-  noteRemove(d,function(ok){if(ok){delete noteDates[d];noteBtn();noteClose(true);toast('그날 기록을 삭제했습니다')}else toast('삭제하지 못했습니다')});
+  if(!confirm(noteDateLabel(d)+' 기록(글·사진)을 모두 삭제합니다. 되돌릴 수 없습니다.'))return;
+  noteRemove(d,function(ok){if(ok){delete noteDates[d];noteBtn();noteClose(true);toast('기록을 삭제했습니다')}else toast('삭제하지 못했습니다')});
 };
-/* 저장된 기록 검색: 글 내용과 날짜로 찾음 (사진 속 내용은 검색 불가) */
-var nsList=[];
+/* 통합 검색: 운동 기록(종목·부위·세트·비고)과 '오늘의 기록'(글)을 한꺼번에 찾음. 사진 속 내용은 검색 불가 */
+var nsNotes=[],nsScope='all';
 function noteAll(cb){noteOpenDB(function(db){if(!db){cb([]);return}var out=[];try{var rq=db.transaction('notes').objectStore('notes').openCursor();rq.onsuccess=function(){var c=rq.result;if(c){var v=c.value;out.push({date:v.date,text:v.text||'',n:(v.photos||[]).length});c.continue()}else cb(out)};rq.onerror=function(){cb(out)}}catch(e){cb(out)}})}
+function nsWorkText(r){
+  var txt,rp=r.reps||[],w=r.w||[];
+  if(r.type==='유산소'||r.part==='유산소'&&!r.sets){txt='거리 '+fmt(r.dist)+'km'+(rsec(r)>0?' · '+tmKo(rsec(r)):'')}
+  else{var parts=[];for(var i=0;i<5;i++)if(rp[i]>0)parts.push(rp[i]+'회×'+fmt(w[i]>0?w[i]:r.base)+'kg');txt=r.sets+'세트 · '+parts.join(' / ')+' · 운동량 '+fmt(r.vol)+'kg'}
+  if(r.sec>0)txt+=' · 운동시간 '+tmKo(r.sec);
+  if(r.memo)txt+=' · '+r.memo;
+  return txt;
+}
+function nsHl(p,text,toks){   /* 찾은 단어를 노란색으로 표시 */
+  if(!toks.length){p.appendChild(document.createTextNode(text));return}
+  var lo=text.toLowerCase(),i=0;
+  while(i<text.length){
+    var bi=-1,bl=0;
+    toks.forEach(function(t){var k=lo.indexOf(t,i);if(k>=0&&(bi<0||k<bi||(k===bi&&t.length>bl))){bi=k;bl=t.length}});
+    if(bi<0){p.appendChild(document.createTextNode(text.slice(i)));break}
+    if(bi>i)p.appendChild(document.createTextNode(text.slice(i,bi)));
+    var m=document.createElement('mark');m.textContent=text.slice(bi,bi+bl);p.appendChild(m);i=bi+bl;
+  }
+}
 function nsRender(){
-  var q=$('nsQ').value.trim().toLowerCase(),box=$('nsList');box.innerHTML='';
-  var items=nsList.filter(function(r){return !q||r.text.toLowerCase().indexOf(q)>=0||noteDateLabel(r.date).indexOf(q)>=0||r.date.indexOf(q)>=0}).sort(function(a,b){return a.date<b.date?1:-1});
-  $('nsCount').textContent=nsList.length?(q?'검색 결과 '+items.length+'건 (전체 '+nsList.length+'건)':'저장된 기록 '+nsList.length+'건 · 눌러서 열기'):'저장된 기록이 없습니다';
-  items.forEach(function(r){
-    var d=document.createElement('div');d.className='nsr';
-    var b=document.createElement('b');b.textContent=noteDateLabel(r.date);d.appendChild(b);
-    if(r.n){var i=document.createElement('i');i.textContent='📷 '+r.n+'장';d.appendChild(i)}
-    var p=document.createElement('p'),t=r.text,idx=q?t.toLowerCase().indexOf(q):-1;
-    if(!t){p.textContent='(사진만 있음)'}
-    else if(idx<0){p.textContent=t.length>60?t.slice(0,60)+'…':t}
+  var q=$('nsQ').value.trim().toLowerCase(),toks=q?q.split(/\s+/):[],box=$('nsList');box.innerHTML='';
+  var all=[];
+  if(nsScope!=='note')state.rec.forEach(function(r){all.push({k:'w',date:r.date,ts:r.ts||0,ex:r.ex||'',pt:partLabel(r.part)||'',text:nsWorkText(r)})});
+  if(nsScope!=='work')nsNotes.forEach(function(r){all.push({k:'n',date:r.date,ts:0,ex:'',pt:'',text:r.text,n:r.n})});
+  var items=all.filter(function(r){
+    if(!toks.length)return true;
+    var hay=(noteDateLabel(r.date)+' '+r.date+' '+r.ex+' '+r.pt+' '+r.text).toLowerCase();
+    return toks.every(function(t){return hay.indexOf(t)>=0});
+  }).sort(function(a,b){return a.date<b.date?1:a.date>b.date?-1:(b.ts-a.ts)});
+  var MAX=100;
+  $('nsCount').textContent=!all.length?'저장된 내용이 없습니다':(toks.length?'검색 결과 '+items.length+'건 (전체 '+all.length+'건)':'전체 '+all.length+'건 · 최신 날짜순')+(items.length>MAX?' · 상위 '+MAX+'건만 표시':'')+(nsScope!=='work'?' · [기록]은 눌러서 열기':'');
+  items.slice(0,MAX).forEach(function(r){
+    var d=document.createElement('div');d.className='nsr '+(r.k==='n'?'nn':'nw');
+    var tg=document.createElement('em');tg.className='tg';tg.textContent=r.k==='n'?'기록':'운동';d.appendChild(tg);
+    var b=document.createElement('b');b.textContent=noteDateLabel(r.date)+' ('+wd(r.date)+')';d.appendChild(b);
+    if(r.k==='w'){
+      var nm=document.createElement('span');nm.className='nm2';nsHl(nm,r.ex,toks);d.appendChild(nm);
+      if(r.pt){var sm=document.createElement('small');sm.textContent=r.pt;d.appendChild(sm)}
+    }else if(r.n){var sm2=document.createElement('small');sm2.textContent='📷 '+r.n+'장';d.appendChild(sm2)}
+    var p=document.createElement('p'),t=r.text;
+    if(r.k==='w'){nsHl(p,t,toks)}
+    else if(!t){p.textContent='(사진만 있음)'}
     else{
-      var st=Math.max(0,idx-15),en=Math.min(t.length,st+60);
+      var lo=t.toLowerCase(),idx=-1;toks.forEach(function(x){var k=lo.indexOf(x);if(k>=0&&(idx<0||k<idx))idx=k});
+      var st=idx>15?idx-15:0,en=Math.min(t.length,st+80);
+      if(idx<0){st=0;en=Math.min(t.length,80)}
       if(st>0)p.appendChild(document.createTextNode('…'));
-      p.appendChild(document.createTextNode(t.slice(st,idx)));
-      var m=document.createElement('mark');m.textContent=t.slice(idx,idx+q.length);p.appendChild(m);
-      p.appendChild(document.createTextNode(t.slice(idx+q.length,en)+(en<t.length?'…':'')));
+      nsHl(p,t.slice(st,en),toks);
+      if(en<t.length)p.appendChild(document.createTextNode('…'));
     }
     d.appendChild(p);
-    d.onclick=function(){$('noteSearch').hidden=true;noteOpen(r.date)};
+    if(r.k==='n')d.onclick=function(){$('noteSearch').hidden=true;noteOpen(r.date)};
     box.appendChild(d);
   });
 }
-function nsOpen(){noteAll(function(l){nsList=l;$('nsQ').value='';nsRender();$('noteSearch').hidden=false;$('nsQ').focus()})}
+function nsSetScope(sc){nsScope=sc;Array.prototype.forEach.call($('nsScope').children,function(x){x.className=x.getAttribute('data-s')===sc?'on':''})}
+function nsOpen(){noteAll(function(l){nsNotes=l;$('nsQ').value='';nsSetScope('all');nsRender();$('noteSearch').hidden=false;$('nsQ').focus()})}
 $('noteFind').onclick=function(){noteClose(false);if($('noteSheet').hidden)nsOpen()};
 $('nsQ').oninput=nsRender;
+$('nsScope').onclick=function(e){var b=e.target.closest?e.target.closest('button'):null;if(!b)return;nsSetScope(b.getAttribute('data-s'));nsRender()};
 $('nsClose').onclick=function(){$('noteSearch').hidden=true};
 $('noteSearch').onclick=function(e){if(e.target===this)this.hidden=true};
 function setNavH(){var n=document.querySelector('nav'),t=$('top'),st=document.documentElement.style;if(n)st.setProperty('--navH',n.offsetHeight+'px');if(t)st.setProperty('--topH',t.offsetHeight+'px')}
