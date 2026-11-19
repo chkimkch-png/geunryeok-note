@@ -247,6 +247,7 @@ table.sumt{table-layout:fixed}
 #nsList .nsr i{font-style:normal;color:var(--sub);font-size:13px;margin-left:8px}
 #nsList .nsr p{margin:4px 0 0;font-size:14px;line-height:1.4;word-break:break-all}
 #nsList mark{background:#FFF200;color:inherit}
+#noteSheet [hidden]{display:none!important}
 #noteSearch .nsc{display:flex;gap:6px;margin-top:8px}
 #noteSearch .nsc button{margin:0;padding:8px 4px;font-size:14px;background:#e9ecf3;color:var(--navy)}
 #noteSearch .nsc button.on{background:var(--navy);color:#fff}
@@ -403,6 +404,7 @@ table.sumt{table-layout:fixed}
     <h3>오늘의 기록</h3>
     <div class="ndate" id="noteDate"></div>
     <button class="ghost" id="noteFind" type="button" style="margin:0 0 8px;padding:10px">🔍 운동·기록 검색</button>
+    <button class="ghost" id="noteLegacy" type="button" hidden style="margin:0 0 8px;padding:10px">📥 이 날짜에 종목 구분 없이 저장된 기록 가져오기</button>
     <textarea id="noteText" placeholder="컨디션, 운동 느낌, 특이사항 등"></textarea>
     <div class="nrow">
       <button class="ghost" id="noteCam" type="button">📷 사진 찍기</button>
@@ -1320,7 +1322,7 @@ function setCnt(n){cnt=n;try{localStorage.setItem(CNTKEY,String(cnt))}catch(e){}
 })();
 
 /* ===== 그날의 메모 + 사진 (이 휴대폰의 IndexedDB에 저장, 날짜별 1건) ===== */
-var NDB=null,noteDates={},nDate='',nText='',nPhotos=[],nDirty=false,nUrls=[];
+var NDB=null,noteDates={},nDate='',nD='',nEx='',nLegacy='',nLegacyRec=null,nText='',nPhotos=[],nDirty=false,nUrls=[];
 function noteOpenDB(cb){
   if(NDB){cb(NDB);return}
   try{
@@ -1334,8 +1336,11 @@ function noteGet(d,cb){noteOpenDB(function(db){if(!db){cb(null);return}try{var r
 function notePut(rec,cb){noteOpenDB(function(db){if(!db){cb(false);return}try{var t=db.transaction('notes','readwrite');t.objectStore('notes').put(rec);t.oncomplete=function(){cb(true)};t.onerror=function(){cb(false)};t.onabort=function(){cb(false)}}catch(e){cb(false)}})}
 function noteRemove(d,cb){noteOpenDB(function(db){if(!db){cb(false);return}try{var t=db.transaction('notes','readwrite');t.objectStore('notes').delete(d);t.oncomplete=function(){cb(true)};t.onerror=function(){cb(false)};t.onabort=function(){cb(false)}}catch(e){cb(false)}})}
 function noteLoadKeys(){noteOpenDB(function(db){if(!db)return;try{var r=db.transaction('notes').objectStore('notes').getAllKeys();r.onsuccess=function(){noteDates={};(r.result||[]).forEach(function(k){noteDates[k]=1});noteBtn()}}catch(e){}})}
-function noteBtn(){var b=$('btnNote');if(!b)return;var has=!!noteDates[$('date').value];b.className='ghost'+(has?' has':'');b.textContent='기록';if(has){var q=document.createElement('span');q.className='nsq';q.setAttribute('aria-label','저장된 기록 있음');b.appendChild(q)}}
+var nbLast='';
+function noteBtn(){var b=$('btnNote');if(!b)return;var k=nKey($('date').value,$('ex').value||''),has=!!noteDates[k],sig=k+(has?'1':'0');if(sig===nbLast)return;nbLast=sig;b.className='ghost'+(has?' has':'');b.textContent='기록';if(has){var q=document.createElement('span');q.className='nsq';q.setAttribute('aria-label','저장된 기록 있음');b.appendChild(q)}}
+setInterval(noteBtn,600);   /* 종목·날짜가 바뀌면 표시를 바로 갱신 */
 window.__noteBtn=noteBtn;
+function nKey(d,ex){return ex?d+'|'+ex:d}   /* 기록 저장 키: 날짜+종목 (종목마다 따로 저장) */
 function noteDateLabel(d){var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(d||'');return m?m[1]+'.'+m[2]+'.'+m[3]:(d||'')}
 function noteRevoke(){nUrls.forEach(function(u){try{URL.revokeObjectURL(u)}catch(e){}});nUrls=[]}
 function noteRenderPh(){
@@ -1371,16 +1376,24 @@ function noteAddFiles(fl){
     if(--left===0)noteRenderPh();
   })});
 }
-function noteOpen(d){
-  d=(typeof d==='string'&&d)?d:$('date').value;if(!d){toast('날짜를 먼저 선택하세요');return}
-  nDate=d;
-  $('noteDate').textContent=noteDateLabel(d);
-  noteGet(d,function(r){
+function noteOpen(d,ex){
+  if(typeof d==='string'&&d){ex=ex||''}else{d=$('date').value;ex=$('ex').value||''}
+  if(!d){toast('날짜를 먼저 선택하세요');return}
+  nD=d;nEx=ex;nDate=nKey(d,ex);nLegacy='';nLegacyRec=null;
+  $('noteDate').textContent=noteDateLabel(d)+' · '+(ex||'종목 구분 없음');
+  $('noteLegacy').hidden=true;
+  noteGet(nDate,function(r){
     nText=r?r.text||'':'';nPhotos=r?(r.photos||[]).slice():[];nDirty=false;
     $('noteText').value=nText;$('noteDel').hidden=!r;
     noteRenderPh();$('noteSheet').hidden=false;
+    if(ex&&!r){noteGet(d,function(lg){if(lg&&!$('noteSheet').hidden&&nDate===nKey(d,ex)){nLegacyRec=lg;$('noteLegacy').hidden=false}})}   /* 예전(종목 구분 없이) 저장분이 있으면 가져오기 버튼 */
   });
 }
+$('noteLegacy').onclick=function(){
+  var lg=nLegacyRec;if(!lg)return;
+  $('noteText').value=lg.text||'';nPhotos=(lg.photos||[]).slice();nDirty=true;nLegacy=lg.date;this.hidden=true;noteRenderPh();
+  toast('저장을 누르면 이 종목의 기록으로 옮겨집니다');
+};
 function noteClose(force){
   if(!force&&($('noteText').value!==nText||nDirty)&&!confirm('저장하지 않고 닫을까요?'))return;
   $('noteSheet').hidden=true;noteRevoke();$('notePh').innerHTML='';
@@ -1398,23 +1411,25 @@ $('noteSave').onclick=function(){
   var d=nDate,t=$('noteText').value.trim();
   if(!t&&!nPhotos.length){   /* 비어 있으면 그날 메모를 지움 */
     if(!noteDates[d]){toast('저장할 내용이 없습니다');return}
-    noteRemove(d,function(ok){if(ok){delete noteDates[d];noteBtn();noteClose(true);toast('기록을 지웠습니다')}else toast('저장하지 못했습니다')});
+    noteRemove(d,function(ok){if(ok){delete noteDates[d];nbLast='';noteBtn();noteClose(true);toast('기록을 지웠습니다')}else toast('저장하지 못했습니다')});
     return;
   }
-  notePut({date:d,text:t,photos:nPhotos,ts:Date.now()},function(ok){
+  notePut({date:d,d:nD,ex:nEx,text:t,photos:nPhotos,ts:Date.now()},function(ok){
     if(!ok){toast('저장하지 못했습니다. 저장 공간을 확인하세요');return}
-    noteDates[d]=1;noteBtn();noteClose(true);toast(noteDateLabel(d)+' 기록을 저장했습니다');
+    noteDates[d]=1;
+    if(nLegacy){var lk=nLegacy;nLegacy='';noteRemove(lk,function(){delete noteDates[lk];nbLast='';noteBtn()})}   /* 옮겨온 예전 기록은 원래 자리에서 삭제 */
+    nbLast='';noteBtn();noteClose(true);toast(noteDateLabel(nD)+(nEx?' '+nEx:'')+' 기록을 저장했습니다');
     try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
   });
 };
 $('noteDel').onclick=function(){
   var d=nDate;
-  if(!confirm(noteDateLabel(d)+' 기록(글·사진)을 모두 삭제합니다. 되돌릴 수 없습니다.'))return;
-  noteRemove(d,function(ok){if(ok){delete noteDates[d];noteBtn();noteClose(true);toast('기록을 삭제했습니다')}else toast('삭제하지 못했습니다')});
+  if(!confirm(noteDateLabel(nD)+(nEx?' '+nEx:'')+' 기록(글·사진)을 모두 삭제합니다. 되돌릴 수 없습니다.'))return;
+  noteRemove(d,function(ok){if(ok){delete noteDates[d];nbLast='';noteBtn();noteClose(true);toast('기록을 삭제했습니다')}else toast('삭제하지 못했습니다')});
 };
 /* 통합 검색: 운동 기록(종목·부위·세트·비고)과 '오늘의 기록'(글)을 한꺼번에 찾음. 사진 속 내용은 검색 불가 */
 var nsNotes=[],nsScope='all';
-function noteAll(cb){noteOpenDB(function(db){if(!db){cb([]);return}var out=[];try{var rq=db.transaction('notes').objectStore('notes').openCursor();rq.onsuccess=function(){var c=rq.result;if(c){var v=c.value;out.push({date:v.date,text:v.text||'',n:(v.photos||[]).length});c.continue()}else cb(out)};rq.onerror=function(){cb(out)}}catch(e){cb(out)}})}
+function noteAll(cb){noteOpenDB(function(db){if(!db){cb([]);return}var out=[];try{var rq=db.transaction('notes').objectStore('notes').openCursor();rq.onsuccess=function(){var c=rq.result;if(c){var v=c.value;out.push({date:v.d||v.date,ex:v.ex||'',text:v.text||'',n:(v.photos||[]).length});c.continue()}else cb(out)};rq.onerror=function(){cb(out)}}catch(e){cb(out)}})}
 function nsWorkText(r){
   var txt,rp=r.reps||[],w=r.w||[];
   if(r.type==='유산소'||r.part==='유산소'&&!r.sets){txt='거리 '+fmt(r.dist)+'km'+(rsec(r)>0?' · '+tmKo(rsec(r)):'')}
@@ -1438,7 +1453,7 @@ function nsRender(){
   var q=$('nsQ').value.trim().toLowerCase(),toks=q?q.split(/\s+/):[],box=$('nsList');box.innerHTML='';
   var all=[];
   if(nsScope!=='note')state.rec.forEach(function(r){all.push({k:'w',date:r.date,ts:r.ts||0,ex:r.ex||'',pt:partLabel(r.part)||'',text:nsWorkText(r)})});
-  if(nsScope!=='work')nsNotes.forEach(function(r){all.push({k:'n',date:r.date,ts:0,ex:'',pt:'',text:r.text,n:r.n})});
+  if(nsScope!=='work')nsNotes.forEach(function(r){all.push({k:'n',date:r.date,ts:0,ex:r.ex||'',pt:'',text:r.text,n:r.n})});
   var items=all.filter(function(r){
     if(!toks.length)return true;
     var hay=(noteDateLabel(r.date)+' '+r.date+' '+r.ex+' '+r.pt+' '+r.text).toLowerCase();
@@ -1450,10 +1465,10 @@ function nsRender(){
     var d=document.createElement('div');d.className='nsr '+(r.k==='n'?'nn':'nw');
     var tg=document.createElement('em');tg.className='tg';tg.textContent=r.k==='n'?'기록':'운동';d.appendChild(tg);
     var b=document.createElement('b');b.textContent=noteDateLabel(r.date)+' ('+wd(r.date)+')';d.appendChild(b);
-    if(r.k==='w'){
-      var nm=document.createElement('span');nm.className='nm2';nsHl(nm,r.ex,toks);d.appendChild(nm);
-      if(r.pt){var sm=document.createElement('small');sm.textContent=r.pt;d.appendChild(sm)}
-    }else if(r.n){var sm2=document.createElement('small');sm2.textContent='📷 '+r.n+'장';d.appendChild(sm2)}
+    if(r.ex){var nm=document.createElement('span');nm.className='nm2';nsHl(nm,r.ex,toks);d.appendChild(nm)}
+    else if(r.k==='n'){var sm0=document.createElement('small');sm0.textContent='(종목 구분 없음)';d.appendChild(sm0)}
+    if(r.k==='w'&&r.pt){var sm=document.createElement('small');sm.textContent=r.pt;d.appendChild(sm)}
+    if(r.k==='n'&&r.n){var sm2=document.createElement('small');sm2.textContent='📷 '+r.n+'장';d.appendChild(sm2)}
     var p=document.createElement('p'),t=r.text;
     if(r.k==='w'){nsHl(p,t,toks)}
     else if(!t){p.textContent='(사진만 있음)'}
@@ -1466,7 +1481,7 @@ function nsRender(){
       if(en<t.length)p.appendChild(document.createTextNode('…'));
     }
     d.appendChild(p);
-    if(r.k==='n')d.onclick=function(){$('noteSearch').hidden=true;noteOpen(r.date)};
+    if(r.k==='n')d.onclick=function(){$('noteSearch').hidden=true;noteOpen(r.date,r.ex)};
     box.appendChild(d);
   });
 }
