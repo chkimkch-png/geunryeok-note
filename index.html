@@ -1167,6 +1167,21 @@ function beep(vol,dur){   /* vol: 소리 크기 비율(기본 1=100%), dur: 길�
     o.start(t);o.stop(t+dur+0.05);
   }catch(e){}
 }
+function beepPre10(){   /* 종료 10초 전 예비 알림: 높은 음의 짧은 '삐삐' 2번 (평소 880Hz 단음과 구분되는 소리) */
+  var a=getAudio();if(!a)return;
+  try{
+    [0,0.2].forEach(function(off){
+      var t=a.currentTime+off,o=a.createOscillator(),g=a.createGain();
+      o.type='triangle';o.frequency.value=1320;
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(0.8,t+0.02);
+      g.gain.setValueAtTime(0.8,t+0.08);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.14);
+      o.connect(g);g.connect(a.destination);
+      o.start(t);o.stop(t+0.19);
+    });
+  }catch(e){}
+}
 function lockScreen(){
   try{if('wakeLock' in navigator){navigator.wakeLock.request('screen').then(function(l){wl=l;l.addEventListener('release',function(){if(wl===l)wl=null})}).catch(function(){})}}catch(e){}
 }
@@ -1190,7 +1205,7 @@ function renderCount(){
   $('cdPop').className='cdpop'+(rem<=3?' warn':'')+(hintOn?' hint':'');
   renderAcc();
 }
-var preIdx=0;   /* 이번 회차에서 이미 낸 예비 비프음 횟수 (종료 3·2·1초 전, 소리 70%) */
+var preIdx=0,tenDone=false;   /* preIdx: 이번 회차에서 이미 낸 예비 비프음 횟수 (종료 3·2·1초 전, 소리 70%) / tenDone: 10초 전 알림을 이미 냈는지 */
 function tick(){
   if(!running)return;
   var now=Date.now();
@@ -1198,9 +1213,13 @@ function tick(){
     beep();   // 종료 시점: 100%
     var step=selSec*1000;
     while(nextAt<=now)nextAt+=step;
-    preIdx=0;
+    preIdx=0;tenDone=false;
   }else{
     var left=nextAt-now;
+    if(!tenDone&&selSec>10&&left<=10000){   // 종료 10초 전: 다른 소리(삐삐)로 예비 시작 알림 (반복시간 10초 이하는 제외)
+      tenDone=true;
+      if(10000-left<700)beepPre10();   // 너무 늦게 도착하면 건너뜀
+    }
     while(preIdx<3&&left<=(3-preIdx)*1000){
       var due=(3-preIdx)*1000;
       if(due-left<700)beep(0.7,0.25);   // 너무 늦게 도착한 예비음은 건너뜀
@@ -1220,7 +1239,7 @@ function showCounterHint(){   /* 반복시간 30초 이상일 때 3초간 깜빡
 }
 function startIv(){
   getAudio();
-  running=true;runStart=Date.now();lastElapsed=0;nextAt=runStart+selSec*1000;preIdx=0;
+  running=true;runStart=Date.now();lastElapsed=0;nextAt=runStart+selSec*1000;preIdx=0;tenDone=false;
   if(tmr)clearInterval(tmr);
   tmr=setInterval(tick,200);
   lockScreen();renderIv();showCounterHint();
@@ -1233,7 +1252,7 @@ function stopIv(){
 }
 function setIv(sec){
   selSec=sec;saveIv();
-  if(running){nextAt=Date.now()+selSec*1000;preIdx=0}  // 실행 중 변경하면 새 시간으로 다시 시작
+  if(running){nextAt=Date.now()+selSec*1000;preIdx=0;tenDone=false}  // 실행 중 변경하면 새 시간으로 다시 시작
   renderIv();
   if(running)showCounterHint();   // 실행 중 30초 이상으로 바꾸면 3초간 깜빡임, 30초 미만이면 숨김
 }
