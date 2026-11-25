@@ -248,6 +248,7 @@ table.sumt{table-layout:fixed}
 #nsList .nsr p{margin:4px 0 0;font-size:14px;line-height:1.4;word-break:break-all}
 #nsList mark{background:#FFF200;color:inherit}
 #noteSheet [hidden]{display:none!important}
+.editing #ibox .ie{outline:2px dashed #C25400;outline-offset:-3px;border-radius:10px;cursor:pointer}
 #noteSearch .nsc{display:flex;gap:6px;margin-top:8px}
 #noteSearch .nsc button{margin:0;padding:8px 4px;font-size:14px;background:#e9ecf3;color:var(--navy)}
 #noteSearch .nsc button.on{background:var(--navy);color:#fff}
@@ -399,6 +400,18 @@ table.sumt{table-layout:fixed}
     <div class="pkl" id="pkList"></div>
   </div>
 </div>
+<div id="accSheet" class="ov" hidden>
+  <div class="sheet" role="dialog" aria-label="운동시간(누적) 수정">
+    <h3>운동시간(누적) 수정</h3>
+    <div class="mrow">
+      <div><label for="aM">분</label><input id="aM" type="number" inputmode="numeric" min="0" max="999" placeholder="0"></div>
+      <div><label for="aS">초 (0~59)</label><input id="aS" type="number" inputmode="numeric" min="0" max="59" placeholder="0"></div>
+    </div>
+    <button class="primary" id="aOk" type="button">적용</button>
+    <button class="danger" id="aClr" type="button">운동시간 지우기 (0으로)</button>
+    <button class="ghost" id="aClose" type="button">닫기</button>
+  </div>
+</div>
 <div id="noteSheet" class="ov" hidden>
   <div class="sheet" role="dialog" aria-label="오늘의 기록">
     <h3>오늘의 기록</h3>
@@ -515,6 +528,7 @@ function readForm(){
   for(var i=0;i<5;i++){reps.push(num($('r'+i).value));w.push(num($('w'+i).value))}
   return{base:base,reps:reps,w:w};
 }
+var editSec=null;   /* 수정 중인 기록의 운동시간(초): 누적 칸에 표시하고 눌러서 고침 */
 var editId=null;   /* 수정 중인 기록의 id (없으면 새 기록 입력) */
 function live(){
   var e=findEx($('ex').value),box=$('live'),t='';
@@ -526,8 +540,10 @@ function live(){
   box.textContent=t;
 }
 function renderEditUI(){
+  if(!editId)editSec=null;
   $('btnSave').textContent=editId?'수정 저장':'저장';
   document.body.classList.toggle('editing',!!editId);
+  renderAcc();
   live();
 }
 function editRec(r){
@@ -538,6 +554,7 @@ function editRec(r){
   $('base').value=r.base||'';
   for(var i=0;i<5;i++){$('r'+i).value=r.reps[i]||'';$('w'+i).value=r.w[i]||''}
   $('dist').value=r.dist||'';setDur(rsec(r));
+  editSec=r.sec>0?Math.round(r.sec):0;
   editId=r.id;renderEditUI();
   toast('수정할 내용을 고치고 "수정 저장"을 누르세요');
 }
@@ -595,7 +612,8 @@ function saveRec(){
     var idx=-1;state.rec.forEach(function(x,i){if(x.id===editId)idx=i});
     if(idx<0){toast('수정할 기록을 찾을 수 없습니다');editId=null;renderEditUI();return}
     var old=state.rec[idx];
-    rec.id=old.id;rec.ts=old.ts;if(old.sec>0)rec.sec=old.sec;
+    rec.id=old.id;rec.ts=old.ts;
+    var es=(editSec===null?(old.sec||0):editSec);if(es>0)rec.sec=es;   // 누적(운동시간) 칸에서 고친 값 반영, 0이면 운동시간 없음
     state.rec[idx]=rec;
     if(!save()){state.rec[idx]=old;return}
     editId=null;clearForm();renderEditUI();
@@ -1141,7 +1159,12 @@ function durLabel(sec){
 }
 function clock(sec){return Math.floor(sec/60)+':'+pad2(sec%60)}
 function clockLong(sec){var h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return h?h+':'+pad2(m)+':'+pad2(s):m+':'+pad2(s)}
-function renderAcc(){var ms=running?Date.now()-runStart:lastElapsed;$('iacc').textContent=clockLong(Math.max(0,Math.floor(ms/1000)))}
+function renderAcc(){
+  var ed=!!editId&&editSec!==null,lb=document.querySelector('#ibox .ie small');
+  if(lb)lb.textContent=ed?'누적 ✎':'누적';   // 수정 중에는 눌러서 고칠 수 있음을 표시
+  if(ed){$('iacc').textContent=clockLong(editSec);return}   // 수정 중: 그 기록의 운동시간을 표시
+  var ms=running?Date.now()-runStart:lastElapsed;$('iacc').textContent=clockLong(Math.max(0,Math.floor(ms/1000)))
+}
 function loadIv(){try{var v=JSON.parse(localStorage.getItem(IVKEY));if(v&&v.sec>=5&&v.sec<=3600)selSec=Math.round(v.sec)}catch(e){}}
 function saveIv(){try{localStorage.setItem(IVKEY,JSON.stringify({sec:selSec}))}catch(e){}}
 
@@ -1290,10 +1313,27 @@ $('ivOk').onclick=function(){
   setIv(total);closeSheet();
 };
 $('btnRun').onclick=function(){running?stopIv():startIv()};
+/* 수정 중 누적(운동시간) 칸을 눌러 시간 고치기 */
+function accClose(){$('accSheet').hidden=true}
+document.querySelector('#ibox .ie').onclick=function(){
+  if(!editId||editSec===null)return;
+  $('aM').value=editSec>=60?Math.floor(editSec/60):'';$('aS').value=editSec%60>0?editSec%60:'';
+  $('accSheet').hidden=false;
+};
+$('aOk').onclick=function(){
+  var m=Math.floor(num($('aM').value)),x=Math.floor(num($('aS').value));
+  if(m<0||x<0||x>59||m>999){toast('분은 0~999, 초는 0~59로 입력하세요');return}
+  editSec=m*60+x;renderAcc();accClose();
+  toast('운동시간 '+clockLong(editSec)+' · \"수정 저장\"을 눌러야 반영됩니다');
+};
+$('aClr').onclick=function(){editSec=0;renderAcc();accClose();toast('운동시간을 0으로 지웠습니다 · \"수정 저장\"을 눌러야 반영됩니다')};
+$('aClose').onclick=accClose;
+$('accSheet').onclick=function(e){if(e.target===this)accClose()};
 /* 저장: 누적시간을 '지금 선택된 종목'에 붙임.
    - 그 종목의 오늘 기록이 30분 이내에 저장된 것이면 그 기록에 더함
    - 아니면 그 종목의 기록을 저장할 때 붙이도록 보관 */
 function saveTime(){
+  if(editId){toast('수정 중에는 누적 칸을 눌러 시간을 고친 뒤 "수정 저장"을 누르세요');return}
   if(running)stopIv();
   var sec=Math.floor(lastElapsed/1000);
   if(sec<1){toast('저장할 누적시간이 없습니다');return}
