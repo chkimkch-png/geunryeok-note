@@ -75,13 +75,16 @@ td b{color:var(--orange)}
 .row{display:flex;gap:8px;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:6px}
 .note{font-size:13px;color:var(--sub);line-height:1.5;margin-top:6px}
 
-#ibar{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:6px;padding:8px 10px;background:#fff;border-bottom:1px solid var(--line);align-items:stretch}
+#ibar{display:grid;grid-template-columns:auto minmax(0,1fr) 72px 72px;gap:6px;padding:8px 10px;background:#fff;border-bottom:1px solid var(--line);align-items:stretch}
 #ibar button{margin:0;padding:0 9px;min-height:52px;font-size:14px;border-radius:10px;width:auto;white-space:nowrap}
 .lrow{display:flex;justify-content:space-between;align-items:flex-end}.lrow label{margin-bottom:6px}
 #btnCnt{width:auto;min-width:92px;min-height:62px;margin:8px 0 4px;padding:2px 16px;font-size:40px;font-weight:800;line-height:1.1;border-radius:14px;background:var(--navy);color:#fff;font-variant-numeric:tabular-nums;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
 #btnCnt.max{background:var(--orange)}
-.iv-run{min-width:68px}
-.iv-save{min-width:48px;background:var(--navy);color:#fff}
+.iv-run{min-width:72px}
+.iv-save{min-width:72px;background:var(--navy);color:#fff;transition:background-color .4s ease}
+.iv-save.ok{background:#D32F2F;transition:none}   /* 저장 성공: 잠깐 적색 */
+.iv-save.no{animation:svshk .45s}   /* 저장 안 됨: 좌우로 흔들림 */
+@keyframes svshk{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
 .iv-btn{background:#e9ecf3;color:var(--navy)}
 .iv-run{background:var(--orange);color:#fff}
 .iv-run.on{background:#b42318}
@@ -1341,27 +1344,32 @@ $('accSheet').onclick=function(e){if(e.target===this)accClose()};
 /* 저장: 누적시간을 '지금 선택된 종목'에 붙임.
    - 그 종목의 오늘 기록이 30분 이내에 저장된 것이면 그 기록에 더함
    - 아니면 그 종목의 기록을 저장할 때 붙이도록 보관 */
+function flashSave(ok){   /* 저장 버튼 확인 표시: 성공=잠깐 적색 후 원래 색, 실패=좌우 흔들림 */
+  var b=$('btnSaveT');b.classList.remove('ok','no');void b.offsetWidth;
+  b.classList.add(ok?'ok':'no');
+  clearTimeout(b._ft);b._ft=setTimeout(function(){b.classList.remove('ok','no')},ok?900:450);
+}
 function saveTime(){
-  if(editId){toast('수정 중에는 누적 칸을 눌러 시간을 고친 뒤 "수정 저장"을 누르세요');return}
+  if(editId){toast('수정 중에는 누적 칸을 눌러 시간을 고친 뒤 "수정 저장"을 누르세요');flashSave(false);return}
   if(running)stopIv();
   var sec=Math.floor(lastElapsed/1000);
-  if(sec<1){toast('저장할 누적시간이 없습니다');return}
+  if(sec<1){toast('저장할 누적시간이 없습니다');flashSave(false);return}
   var e=findEx($('ex').value);
-  if(!e){toast('운동 종목을 먼저 선택하세요');return}
+  if(!e){toast('운동 종목을 먼저 선택하세요');flashSave(false);return}
   var t=today(),last=null;
   state.rec.forEach(function(r){if(r.ex===e.n&&r.date===t&&(!last||r.ts>last.ts))last=r});
   if(last&&Date.now()-last.ts<=30*60*1000){
     var before=last.sec||0;last.sec=before+sec;last.sent=false;
-    if(!save()){last.sec=before;return}
-    lastElapsed=0;renderIv();
+    if(!save()){last.sec=before;flashSave(false);return}
+    lastElapsed=0;renderIv();flashSave(true);
     toast(last.ex+'에 운동시간 '+clockLong(sec)+' 저장');
     renderList();renderSum();renderChk();
     send([last],true,true);
   }else{
     if(!state.pendMap)state.pendMap={};
     var bp=state.pendMap[e.n]||0;state.pendMap[e.n]=bp+sec;
-    if(!save()){if(bp)state.pendMap[e.n]=bp;else delete state.pendMap[e.n];return}
-    lastElapsed=0;renderIv();
+    if(!save()){if(bp)state.pendMap[e.n]=bp;else delete state.pendMap[e.n];flashSave(false);return}
+    lastElapsed=0;renderIv();flashSave(true);
     toast('"'+e.n+'" 기록을 저장할 때 운동시간 '+clockLong(state.pendMap[e.n])+'을 붙입니다');
   }
 }
