@@ -64,7 +64,8 @@ h3 em.sortlbl{color:var(--orange);font-weight:800;font-size:14px}
 .card .t .pt{flex:none;white-space:nowrap;font-size:13px}
 .card .t .st{flex:none;margin-left:auto;white-space:nowrap;font-size:12px}
 .card .t .st.no{color:#b42318}
-.card .acts{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+.card .acts{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:8px}
+.card .acts .stm{margin-right:auto;font-size:14px;font-weight:600;color:var(--sub)}
 table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;font-size:14px}
 th{background:var(--navy);color:#fff;font-weight:500;padding:9px 6px;text-align:right}
 td{padding:9px 6px;border-bottom:1px solid var(--line);text-align:right}
@@ -449,10 +450,10 @@ table.sumt{table-layout:fixed}
 'use strict';
 var KEY='geunryeok_note_v1';
 var DEF=[{n:'벤치프레스',p:'가슴',t:'근력'},{n:'랫풀다운',p:'등',t:'근력'},{n:'스쿼트',p:'하체',t:'근력'},{n:'숄더프레스',p:'어깨',t:'근력'},{n:'빨리걷기',p:'유산소',t:'유산소'},{n:'러닝',p:'유산소',t:'유산소'}];
-var state={ex:DEF,rec:[],url:'',sheetUrl:'',sheetMode:'app',pend:0,pendMap:{}};
+var state={ex:DEF,rec:[],url:'',sheetUrl:'',sheetMode:'app',pend:0,pendMap:{},selAt:0,runAt:0};   /* selAt: 이번 운동을 고른 시각, runAt: 타이머를 처음 시작한 시각 (저장 때 '시작 시각'으로 사용) */
 var $=function(i){return document.getElementById(i)};
 
-function load(){try{var s=localStorage.getItem(KEY);if(s){var o=JSON.parse(s);if(o.ex)state.ex=o.ex;if(o.rec)state.rec=o.rec;if(o.pend>0)state.pend=o.pend;if(o.pendMap)state.pendMap=o.pendMap;if(typeof o.sheetUrl==='string')state.sheetUrl=o.sheetUrl;if(o.sheetMode==='web'||o.sheetMode==='app')state.sheetMode=o.sheetMode;
+function load(){try{var s=localStorage.getItem(KEY);if(s){var o=JSON.parse(s);if(o.ex)state.ex=o.ex;if(o.rec)state.rec=o.rec;if(o.pend>0)state.pend=o.pend;if(o.pendMap)state.pendMap=o.pendMap;if(o.selAt>0)state.selAt=o.selAt;if(o.runAt>0)state.runAt=o.runAt;if(typeof o.sheetUrl==='string')state.sheetUrl=o.sheetUrl;if(o.sheetMode==='web'||o.sheetMode==='app')state.sheetMode=o.sheetMode;
 if(o.tm&&o.tm.length){   /* 이전 버전에서 따로 저장한 운동시간 → 같은 날(또는 그 이전) 가장 최근 운동 기록에 붙임 */
   o.tm.forEach(function(t){var b=null;state.rec.forEach(function(r){if(r.date<=t.date&&(!b||r.date>b.date||(r.date===b.date&&r.ts>b.ts)))b=r});if(b)b.sec=(b.sec||0)+t.sec});
   setTimeout(save,0);
@@ -463,6 +464,9 @@ function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp
 function num(v){var n=parseFloat(v);return isNaN(n)||n<0?0:n}
 function fmt(n){return (Math.round(n*100)/100).toLocaleString('ko-KR')}
 function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function ymd(ms){var d=new Date(ms);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function hm(ms){var d=new Date(ms);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}   /* 시작 시각 표시 (24시간제) */
+function markSel(){if(editId)return;state.selAt=Date.now();if(!running)state.runAt=0;save()}   /* 종목을 새로 고르면 시작 시각 기준을 다시 잡음 */
 function newId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function calc(reps,w,base){var sets=0,vol=0;for(var i=0;i<5;i++){if(reps[i]>0){sets++;vol+=reps[i]*(w[i]>0?w[i]:base)}}return{sets:sets,vol:vol}}
 function findEx(n){if(!n)return null;for(var i=0;i<state.ex.length;i++)if(state.ex[i].n===n)return state.ex[i];return null}
@@ -512,7 +516,7 @@ function openPickCfg(cfg){
   renderPick();$('exPick').hidden=false;
   var on=$('pkList').querySelector('.on');if(on&&on.scrollIntoView)on.scrollIntoView({block:'center'});
 }
-function openPick(){openPickCfg({title:'정렬',ord:true,items:exItems,cur:function(){return $('ex').value},pick:function(v){$('ex').value=v;onEx()}})}
+function openPick(){openPickCfg({title:'정렬',ord:true,items:exItems,cur:function(){return $('ex').value},pick:function(v){var ch=$('ex').value!==v;$('ex').value=v;onEx();if(ch)markSel()}})}
 function closePick(){$('exPick').hidden=true}
 function onEx(){
   updateExBtn();
@@ -612,7 +616,7 @@ function saveRec(){
     var idx=-1;state.rec.forEach(function(x,i){if(x.id===editId)idx=i});
     if(idx<0){toast('수정할 기록을 찾을 수 없습니다');editId=null;renderEditUI();return}
     var old=state.rec[idx];
-    rec.id=old.id;rec.ts=old.ts;
+    rec.id=old.id;rec.ts=old.ts;if(old.st>0)rec.st=old.st;
     var es=(editSec===null?(old.sec||0):editSec);if(es>0)rec.sec=es;   // 누적(운동시간) 칸에서 고친 값 반영, 0이면 운동시간 없음
     state.rec[idx]=rec;
     if(!save()){state.rec[idx]=old;return}
@@ -624,8 +628,11 @@ function saveRec(){
   }
   var gen=state.pend||0,bound=(state.pendMap&&state.pendMap[e.n])||0,used=gen+bound;
   if(used>0)rec.sec=used;
+  var oldRun=state.runAt,oldSel=state.selAt,st=oldRun>0?oldRun:(oldSel>0?oldSel:0);
+  if(st>0&&ymd(st)===date)rec.st=st;   /* 시작 시각: 타이머 첫 시작(없으면 종목을 고른 시각). 다른 날짜로 입력한 기록에는 넣지 않음 */
   state.rec.push(rec);state.pend=0;if(bound)delete state.pendMap[e.n];
-  if(!save()){state.rec.pop();state.pend=gen;if(bound)state.pendMap[e.n]=bound;return}
+  state.runAt=0;state.selAt=Date.now();   /* 같은 운동을 또 할 때를 위해 다음 시작 기준을 새로 잡음 */
+  if(!save()){state.rec.pop();state.pend=gen;state.runAt=oldRun;state.selAt=oldSel;if(bound)state.pendMap[e.n]=bound;return}
   clearForm();toast(e.n+' 저장했습니다'+(used>0?' · 운동시간 '+tmKo(used)+' 포함':''));renderList();renderSum();
   send([rec],true);
 }
@@ -714,6 +721,7 @@ function recCard(r,showDate){
   if(showDate)txt=r.date+' ('+wd(r.date)+') · '+txt;
   c.appendChild(el('div','d',txt));
   var acts=el('div','acts');
+  if(r.st>0)acts.appendChild(el('span','stm','시작 '+hm(r.st)));
   var eb=el('button','ghost small del','수정');
   eb.onclick=function(){editRec(r)};
   var b=el('button','danger small del','삭제');
@@ -1066,7 +1074,7 @@ document.querySelectorAll('nav button').forEach(function(b){
     setNavH();window.scrollTo(0,0);
   };
 });
-$('ex').onchange=onEx;
+$('ex').onchange=function(){onEx();markSel()};
 ['base','dist','dh','dm','ds'].forEach(function(i){$(i).oninput=live});
 for(var j=0;j<5;j++){$('r'+j).oninput=live;$('w'+j).oninput=live}
 $('btnLast').onclick=fillLast;
@@ -1262,6 +1270,7 @@ function showCounterHint(){   /* 반복시간 30초 이상일 때 3초간 깜빡
 }
 function startIv(){
   getAudio();
+  if(!editId&&!(state.runAt>0)){state.runAt=Date.now();save()}   // 이번 운동의 시작 시각(첫 시작만)
   running=true;runStart=Date.now();lastElapsed=0;nextAt=runStart+selSec*1000;preIdx=0;tenDone=false;
   if(tmr)clearInterval(tmr);
   tmr=setInterval(tick,200);
@@ -1494,6 +1503,7 @@ function nsWorkText(r){
   if(r.type==='유산소'||r.part==='유산소'&&!r.sets){txt='거리 '+fmt(r.dist)+'km'+(rsec(r)>0?' · '+tmKo(rsec(r)):'')}
   else{var parts=[];for(var i=0;i<5;i++)if(rp[i]>0)parts.push(rp[i]+'회×'+fmt(w[i]>0?w[i]:r.base)+'kg');txt=r.sets+'세트 · '+parts.join(' / ')+' · 운동량 '+fmt(r.vol)+'kg'}
   if(r.sec>0)txt+=' · 운동시간 '+tmKo(r.sec);
+  if(r.st>0)txt+=' · 시작 '+hm(r.st);
   if(r.memo)txt+=' · '+r.memo;
   return txt;
 }
