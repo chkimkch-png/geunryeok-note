@@ -584,8 +584,10 @@ function fillLast(){
   if(!r){toast('이 종목의 이전 기록이 없습니다');return}
   $('base').value=r.base||'';
   for(var i=0;i<5;i++){$('r'+i).value=r.reps[i]||'';$('w'+i).value=r.w[i]||''}
-  $('dist').value=r.dist||'';setDur(rsec(r));live();
-  toast(r.date+' 기록을 불러왔습니다');
+  $('dist').value=r.dist||'';setDur(rsec(r));
+  $('memo').value=r.memo||'';   /* 비고도 함께 불러옴 */
+  live();
+  toast(r.date+' 기록을 불러왔습니다'+(r.memo?' (비고 포함)':''));
 }
 
 function sheetRow(r){
